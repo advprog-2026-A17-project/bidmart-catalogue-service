@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Katalog BidMart</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 8px 12px rgba(0,0,0,0.1); }
+        .card img { max-width: 100%; border-radius: 8px; margin-bottom: 15px; }
+        .category-badge { background-color: #007bff; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8em; display: inline-block; margin-bottom: 10px; }
+        .price { font-size: 1.4em; font-weight: bold; color: #28a745; margin: 15px 0; }
+        .empty-state { text-align: center; margin-top: 50px; font-style: italic; color: #777; }
+    </style>
+</head>
+<body>
+
+<h1 th:text="${title}">Katalog Produk</h1>
+
+<div class="catalog-grid">
+    <div class="card" th:each="item : ${listings}">
+        <img th:src="${item.imageUrl}" alt="Gambar Produk">
+        <div class="category-badge" th:text="${item.category}">Kategori</div>
+        <h3 th:text="${item.title}">Nama Produk</h3>
+        <p th:text="${item.description}">Deskripsi Produk</p>
+        <div class="price" th:text="'Rp ' + ${#numbers.formatDecimal(item.currentPrice, 0, 'COMMA', 0, 'POINT')}">Rp 0</div>
+        <p style="font-size: 0.85em; color: #666;" th:text="'Berakhir: ' + ${#temporals.format(item.endTime, 'dd MMM yyyy HH:mm')}"></p>
+    </div>
+</div>
+
+<div class="empty-state" th:if="${#lists.isEmpty(listings)}">
+    <p>Belum ada produk yang dilelang saat ini.</p>
+</div>
+
+</body>
+</html>
