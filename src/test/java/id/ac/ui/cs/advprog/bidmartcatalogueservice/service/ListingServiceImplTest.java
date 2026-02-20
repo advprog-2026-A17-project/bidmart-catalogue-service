@@ -81,4 +81,78 @@ class ListingServiceImplTest {
 
         assertNull(found);
     }
+
+
+    @Test
+    void testSearchListings_CategoryAndKeyword() {
+        when(listingRepository.findByTitleContainingIgnoreCase("Test")).thenReturn(Arrays.asList(sampleListing));
+
+        List<Listing> result = listingService.searchListings("Elektronik", "Test");
+
+        assertEquals(1, result.size());
+        verify(listingRepository, times(1)).findByTitleContainingIgnoreCase("Test");
+    }
+
+    @Test
+    void testSearchListings_OnlyCategory() {
+        when(listingRepository.findByCategory("Elektronik")).thenReturn(Arrays.asList(sampleListing));
+
+        List<Listing> result = listingService.searchListings("Elektronik", null);
+
+        assertEquals(1, result.size());
+        verify(listingRepository, times(1)).findByCategory("Elektronik");
+    }
+
+    @Test
+    void testSearchListings_OnlyKeyword() {
+        when(listingRepository.findByTitleContainingIgnoreCase("Test")).thenReturn(Arrays.asList(sampleListing));
+
+        List<Listing> result = listingService.searchListings(null, "Test");
+
+        assertEquals(1, result.size());
+        verify(listingRepository, times(1)).findByTitleContainingIgnoreCase("Test");
+    }
+
+    @Test
+    void testSearchListings_BothNull() {
+        when(listingRepository.findAll()).thenReturn(Arrays.asList(sampleListing));
+
+        List<Listing> result = listingService.searchListings(null, null);
+
+        assertEquals(1, result.size());
+        verify(listingRepository, times(1)).findAll();
+    }
+
+
+    @Test
+    void testUpdateListing_Found() {
+        when(listingRepository.existsById("123")).thenReturn(true);
+        when(listingRepository.save(any(Listing.class))).thenReturn(sampleListing);
+
+        Listing updated = listingService.updateListing("123", sampleListing);
+
+        assertNotNull(updated);
+        assertEquals("123", updated.getId());
+        verify(listingRepository, times(1)).save(sampleListing);
+    }
+
+    @Test
+    void testUpdateListing_NotFound() {
+        when(listingRepository.existsById("999")).thenReturn(false);
+
+        Listing updated = listingService.updateListing("999", sampleListing);
+
+        assertNull(updated);
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+
+    @Test
+    void testDeleteListing() {
+        doNothing().when(listingRepository).deleteById("123");
+
+        listingService.deleteListing("123");
+
+        verify(listingRepository, times(1)).deleteById("123");
+    }
 }

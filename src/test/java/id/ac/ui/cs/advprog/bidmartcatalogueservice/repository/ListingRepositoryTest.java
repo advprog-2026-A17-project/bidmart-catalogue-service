@@ -20,7 +20,6 @@ class ListingRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // Memasukkan data pancingan sebelum setiap test dijalankan
         Listing item1 = Listing.builder()
                 .title("Laptop Gaming")
                 .category("Elektronik")
@@ -44,7 +43,6 @@ class ListingRepositoryTest {
 
     @Test
     void testFindByCategory() {
-        // Mencari berdasarkan kategori Elektronik (seharusnya ketemu 2)
         List<Listing> elektronikList = listingRepository.findByCategory("Elektronik");
 
         assertFalse(elektronikList.isEmpty());
@@ -53,7 +51,6 @@ class ListingRepositoryTest {
 
     @Test
     void testFindByTitleContainingIgnoreCase() {
-        // Mencari barang yang ada kata "gaming" (seharusnya ketemu Laptop dan Mouse)
         List<Listing> searchResult = listingRepository.findByTitleContainingIgnoreCase("gaming");
 
         assertFalse(searchResult.isEmpty());

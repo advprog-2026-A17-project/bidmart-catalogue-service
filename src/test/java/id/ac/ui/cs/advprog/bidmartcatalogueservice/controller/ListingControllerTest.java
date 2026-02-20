@@ -62,7 +62,6 @@ class ListingControllerTest {
     void testCreateListingEndpoint() throws Exception {
         when(listingService.createListing(any(Listing.class))).thenReturn(sampleListing);
 
-        // JSON body palsu untuk testing
         String requestBody = "{\"title\":\"Kamera Test\",\"category\":\"Fotografi\"}";
 
         mockMvc.perform(post("/api/v1/listings")
@@ -70,5 +69,16 @@ class ListingControllerTest {
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Kamera Test"));
+    }
+    @Test
+    void testSearchListingsEndpoint() throws Exception {
+        when(listingService.searchListings("Fotografi", "Kamera")).thenReturn(Arrays.asList(sampleListing));
+
+        mockMvc.perform(get("/api/v1/listings/search")
+                        .param("category", "Fotografi")
+                        .param("keyword", "Kamera"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].title").value("Kamera Test"));
     }
 }
