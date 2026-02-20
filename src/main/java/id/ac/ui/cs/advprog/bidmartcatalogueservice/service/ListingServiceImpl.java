@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Service // Penting agar Spring mengenali ini sebagai komponen Service
+@Service
 public class ListingServiceImpl implements ListingService {
 
     @Autowired
