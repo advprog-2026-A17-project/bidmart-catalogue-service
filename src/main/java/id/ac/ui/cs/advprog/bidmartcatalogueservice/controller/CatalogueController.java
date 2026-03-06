@@ -9,9 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/catalogue/listings")
+@RequestMapping("/api/v1/catalogue/listings")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class CatalogueController {
 
     private final CatalogueService catalogueService;
