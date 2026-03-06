@@ -11,6 +11,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/catalogue/listings")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class CatalogueController {
 
     private final CatalogueService catalogueService;
@@ -20,7 +21,7 @@ public class CatalogueController {
         return ResponseEntity.ok(catalogueService.createListing(item));
     }
 
-    // Pencarian dengan parameter (contoh: /search?minPrice=10000&keyword=iphone)
+    // pencarian dengan parameter (contoh: /search?minPrice=10000&keyword=iphone)
     @GetMapping("/search")
     public ResponseEntity<List<Item>> searchListings(
             @RequestParam(required = false) Long categoryId,
@@ -46,7 +47,7 @@ public class CatalogueController {
         return ResponseEntity.ok("Listing berhasil dibatalkan");
     }
 
-    // Endpoint khusus untuk Kebutuhan Synchronous dari Modul Lelang
+    // endpoint khusus untuk kebutuhan synchronous dari modul lelang
     @GetMapping("/{id}/validate")
     public ResponseEntity<Boolean> validateListing(@PathVariable Long id) {
         return ResponseEntity.ok(catalogueService.validateListingActive(id));

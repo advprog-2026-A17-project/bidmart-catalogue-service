@@ -16,7 +16,6 @@ public class Category {
     @Column(nullable = false, unique = true)
     private String name;
 
-    // Relasi ke Kategori Induk (Parent)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     @JsonIgnore

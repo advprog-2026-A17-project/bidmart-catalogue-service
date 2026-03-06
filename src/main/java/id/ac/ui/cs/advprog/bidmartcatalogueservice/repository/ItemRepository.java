@@ -12,13 +12,12 @@ import java.util.List;
 @Repository
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    // query dinamis: mencari berdasarkan filter yang diisi oleh pembeli
     @Query("SELECT i FROM Item i WHERE i.status = 'ACTIVE' " +
             "AND i.endTime > :currentTime " +
             "AND (:categoryId IS NULL OR i.category.id = :categoryId) " +
             "AND (:minPrice IS NULL OR i.currentPrice >= :minPrice) " +
             "AND (:maxPrice IS NULL OR i.currentPrice <= :maxPrice) " +
-            "AND (:keyword IS NULL OR LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+            "AND LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<Item> searchListings(
             @Param("categoryId") Long categoryId,
             @Param("minPrice") Double minPrice,

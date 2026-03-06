@@ -41,7 +41,6 @@ public class Item {
     @Column(nullable = false)
     private String status = "ACTIVE";
 
-    // Penanda penting untuk validasi edit/batal
     @Column(nullable = false)
     private boolean hasBids = false;
 }

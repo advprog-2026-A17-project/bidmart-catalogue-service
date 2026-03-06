@@ -17,10 +17,8 @@ public class DummyController {
 
     @GetMapping("/")
     public String home(Model model) {
-        // Mengambil semua data dari database
         List<Listing> allListings = listingService.getAllListings();
 
-        // mengirim data tersebut ke file HTML dengan nama variabel "listings"
         model.addAttribute("title", "Katalog BidMart");
         model.addAttribute("listings", allListings);
 

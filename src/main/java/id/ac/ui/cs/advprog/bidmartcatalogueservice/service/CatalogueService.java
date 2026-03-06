@@ -22,14 +22,14 @@ public class CatalogueService {
     }
 
     public List<Item> searchListings(Long categoryId, Double minPrice, Double maxPrice, String keyword) {
-        return itemRepository.searchListings(categoryId, minPrice, maxPrice, keyword, LocalDateTime.now());
+        String safeKeyword = (keyword == null) ? "" : keyword;
+        return itemRepository.searchListings(categoryId, minPrice, maxPrice, safeKeyword, LocalDateTime.now());
     }
 
     public Item getListingDetail(Long id) {
         return itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Listing tidak ditemukan"));
     }
 
-    // Use Case: Perbarui jika belum ada penawaran
     public Item updateListing(Long id, Item updatedItem) {
         Item existingItem = getListingDetail(id);
         if (existingItem.isHasBids()) {
@@ -40,7 +40,6 @@ public class CatalogueService {
         return itemRepository.save(existingItem);
     }
 
-    // Use Case: Batalkan jika belum ada penawaran
     public void cancelListing(Long id) {
         Item existingItem = getListingDetail(id);
         if (existingItem.isHasBids()) {
@@ -50,19 +49,18 @@ public class CatalogueService {
         itemRepository.save(existingItem);
     }
 
-    // --- KETERKAITAN DENGAN MODUL LELANG ---
 
-    // 1. Synchronous API Call: Modul Lelang ngecek apakah barang ini masih valid
+    // 1. synchronous api call: modul lelang ngecek apakah barang ini masih valid
     public boolean validateListingActive(Long id) {
         Item item = getListingDetail(id);
         return item.getStatus().equals("ACTIVE") && item.getEndTime().isAfter(LocalDateTime.now());
     }
 
-    // 2. Asynchronous (RabbitMQ/Kafka): Update harga ketika Modul Lelang kirim pesan
+    // 2. asynchronous (RabbitMQ/Kafka): update harga ketika modul lelang kirim pesan
     public void updatePriceFromBid(Long id, Double newPrice) {
         Item item = getListingDetail(id);
         item.setCurrentPrice(newPrice);
-        item.setHasBids(true); // Kunci barang agar tidak bisa diedit lagi
+        item.setHasBids(true); // kunci barang agar tidak bisa diedit lagi
         itemRepository.save(item);
     }
 }
