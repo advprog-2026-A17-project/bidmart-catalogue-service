@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -33,7 +34,11 @@ public class ListingController {
     @GetMapping("/search")
     public ResponseEntity<List<Listing>> search(
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String keyword) {
-        return ResponseEntity.ok(listingService.searchListings(category, keyword));
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String status) {
+
+        return ResponseEntity.ok(listingService.searchListings(category, keyword, minPrice, maxPrice, status));
     }
 }
