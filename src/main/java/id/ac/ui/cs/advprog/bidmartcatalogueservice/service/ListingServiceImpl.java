@@ -2,9 +2,12 @@ package id.ac.ui.cs.advprog.bidmartcatalogueservice.service;
 
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.specification.ListingSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -33,16 +36,10 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    public List<Listing> searchListings(String category, String keyword) {
-        if (category != null && keyword != null) {
-            // Logika pencarian gabungan (bisa dikembangkan di repository)
-            return listingRepository.findByTitleContainingIgnoreCase(keyword);
-        } else if (category != null) {
-            return listingRepository.findByCategory(category);
-        } else if (keyword != null) {
-            return listingRepository.findByTitleContainingIgnoreCase(keyword);
-        }
-        return getAllListings();
+    public List<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, String status) {
+        // Gunakan dynamic filtering
+        Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status);
+        return listingRepository.findAll(spec);
     }
 
     @Override
