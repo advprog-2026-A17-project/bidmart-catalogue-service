@@ -60,7 +60,7 @@ class ListingServiceImplTest {
                 .title("Phone Test")
                 .startingPrice(new BigDecimal("5000"))
                 .build();
-                
+
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Listing created = listingService.createListing(listingWithNullStatus);

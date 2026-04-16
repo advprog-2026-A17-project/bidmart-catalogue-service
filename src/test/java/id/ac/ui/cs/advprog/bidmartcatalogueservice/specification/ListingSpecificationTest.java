@@ -50,7 +50,7 @@ class ListingSpecificationTest {
     void testFilterByKeyword() {
         Specification<Listing> spec = ListingSpecification.filterListings("gaming", null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(1, result.size());
         assertEquals("Laptop Gaming Pro", result.get(0).getTitle());
     }
@@ -59,7 +59,7 @@ class ListingSpecificationTest {
     void testFilterByCategory() {
         Specification<Listing> spec = ListingSpecification.filterListings(null, "Elektronik", null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(2, result.size());
     }
 
@@ -67,7 +67,7 @@ class ListingSpecificationTest {
     void testFilterByMinPrice() {
         Specification<Listing> spec = ListingSpecification.filterListings(null, null, new BigDecimal("2000"), null, null);
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(l -> l.getTitle().equals("Laptop Gaming Pro")));
         assertTrue(result.stream().anyMatch(l -> l.getTitle().equals("Meja Kayu")));
@@ -77,7 +77,7 @@ class ListingSpecificationTest {
     void testFilterByMaxPrice() {
         Specification<Listing> spec = ListingSpecification.filterListings(null, null, null, new BigDecimal("2000"), null);
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(1, result.size());
         assertEquals("Keyboard Mechanical", result.get(0).getTitle());
     }
@@ -86,7 +86,7 @@ class ListingSpecificationTest {
     void testFilterByStatus() {
         Specification<Listing> spec = ListingSpecification.filterListings(null, null, null, null, "INACTIVE");
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(1, result.size());
         assertEquals("Keyboard Mechanical", result.get(0).getTitle());
     }
@@ -95,25 +95,25 @@ class ListingSpecificationTest {
     void testFilterCombined() {
         Specification<Listing> spec = ListingSpecification.filterListings("laptop", "Elektronik", new BigDecimal("10000"), new BigDecimal("20000"), "ACTIVE");
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(1, result.size());
         assertEquals("Laptop Gaming Pro", result.get(0).getTitle());
     }
-    
+
     @Test
     void testFilterNoMatches() {
         Specification<Listing> spec = ListingSpecification.filterListings("sepeda", "Olahraga", null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertTrue(result.isEmpty());
     }
-    
+
     @Test
     void testFilterEmptyOrNullStringsIgnored() {
         // String that are spaces or empty should be ignored
         Specification<Listing> spec = ListingSpecification.filterListings("", "  ", null, null, "");
         List<Listing> result = listingRepository.findAll(spec);
-        
+
         assertEquals(3, result.size());
     }
 }
