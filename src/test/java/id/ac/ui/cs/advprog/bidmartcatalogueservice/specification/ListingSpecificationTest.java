@@ -110,7 +110,6 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterEmptyOrNullStringsIgnored() {
-        // String that are spaces or empty should be ignored
         Specification<Listing> spec = ListingSpecification.filterListings("", "  ", null, null, "");
         List<Listing> result = listingRepository.findAll(spec);
 
