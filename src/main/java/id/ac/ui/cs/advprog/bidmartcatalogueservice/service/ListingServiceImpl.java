@@ -35,7 +35,6 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public List<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, String status) {
-        // Gunakan dynamic filtering
         Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status);
         return listingRepository.findAll(spec);
     }
