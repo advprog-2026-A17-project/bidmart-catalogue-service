@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - staging
-      - main
 
 jobs:
   deploy:
@@ -28,9 +27,3 @@ jobs:
         run: |
           echo "Deploying to AWS Staging Environment..."
           echo "Status: Staging Updated."
-
-      - name: Deploy to AWS Production
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "Deploying to AWS Production Environment..."
-          echo "Status: Production Updated."
