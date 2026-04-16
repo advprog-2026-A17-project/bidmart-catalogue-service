@@ -38,12 +38,12 @@ jobs:
           cache: gradle
 
       - name: SonarCloud Scan
-        if: ${{ secrets.SONAR_TOKEN != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: chmod +x gradlew && ./gradlew sonar
-
-      - name: Skip SonarCloud Scan (SONAR_TOKEN missing)
-        if: ${{ secrets.SONAR_TOKEN == '' }}
-        run: echo "SONAR_TOKEN is not configured, skipping SonarCloud analysis."
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SONAR_TOKEN is not configured, skipping SonarCloud analysis."
+            exit 0
+          fi
+          chmod +x gradlew && ./gradlew sonar
