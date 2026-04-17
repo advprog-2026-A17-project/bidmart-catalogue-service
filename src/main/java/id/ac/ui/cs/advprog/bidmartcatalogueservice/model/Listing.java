@@ -24,12 +24,12 @@ public class Listing {
     private String sellerId;
     private String title;
     private String description;
-    private String category; // untuk hierarki kategori
+    private String category;
     private String imageUrl;
 
     private BigDecimal startingPrice;
     private BigDecimal reservePrice;
-    private BigDecimal currentPrice; //  update harga dari Modul Lelang
+    private BigDecimal currentPrice; //  update harga dari modul lelang
 
     private LocalDateTime endTime;
     private String status; // DRAFT, ACTIVE, SOLD, CANCELLED
