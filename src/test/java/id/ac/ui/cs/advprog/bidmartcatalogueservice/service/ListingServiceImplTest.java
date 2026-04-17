@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -53,6 +54,23 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_WithNullStatus() {
+        Listing listingWithNullStatus = Listing.builder()
+                .id("124")
+                .title("Phone Test")
+                .startingPrice(new BigDecimal("5000"))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(listingWithNullStatus);
+
+        assertNotNull(created);
+        assertEquals("ACTIVE", created.getStatus());
+        verify(listingRepository, times(1)).save(listingWithNullStatus);
+    }
+
+    @Test
     void testGetAllListings() {
         when(listingRepository.findAll()).thenReturn(Arrays.asList(sampleListing));
 
@@ -82,70 +100,48 @@ class ListingServiceImplTest {
         assertNull(found);
     }
 
-
     @Test
-    void testSearchListings_CategoryAndKeyword() {
-        when(listingRepository.findByTitleContainingIgnoreCase("Test")).thenReturn(Arrays.asList(sampleListing));
+    @SuppressWarnings("unchecked")
+    void testSearchListings() {
+        when(listingRepository.findAll(any(Specification.class))).thenReturn(Arrays.asList(sampleListing));
 
-        List<Listing> result = listingService.searchListings("Elektronik", "Test");
+        List<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, "ACTIVE");
 
         assertEquals(1, result.size());
-        verify(listingRepository, times(1)).findByTitleContainingIgnoreCase("Test");
+        verify(listingRepository, times(1)).findAll(any(Specification.class));
     }
-
-    @Test
-    void testSearchListings_OnlyCategory() {
-        when(listingRepository.findByCategory("Elektronik")).thenReturn(Arrays.asList(sampleListing));
-
-        List<Listing> result = listingService.searchListings("Elektronik", null);
-
-        assertEquals(1, result.size());
-        verify(listingRepository, times(1)).findByCategory("Elektronik");
-    }
-
-    @Test
-    void testSearchListings_OnlyKeyword() {
-        when(listingRepository.findByTitleContainingIgnoreCase("Test")).thenReturn(Arrays.asList(sampleListing));
-
-        List<Listing> result = listingService.searchListings(null, "Test");
-
-        assertEquals(1, result.size());
-        verify(listingRepository, times(1)).findByTitleContainingIgnoreCase("Test");
-    }
-
-    @Test
-    void testSearchListings_BothNull() {
-        when(listingRepository.findAll()).thenReturn(Arrays.asList(sampleListing));
-
-        List<Listing> result = listingService.searchListings(null, null);
-
-        assertEquals(1, result.size());
-        verify(listingRepository, times(1)).findAll();
-    }
-
 
     @Test
     void testUpdateListing_Found() {
-        when(listingRepository.existsById("123")).thenReturn(true);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenReturn(sampleListing);
 
-        Listing updated = listingService.updateListing("123", sampleListing);
+        Listing updatedData = Listing.builder()
+                .title("Laptop Test Updated")
+                .description("Desc")
+                .imageUrl("http://img.com")
+                .startingPrice(new BigDecimal("12000"))
+                .currentPrice(new BigDecimal("15000"))
+                .sellerId("usr")
+                .build();
+
+        Listing updated = listingService.updateListing("123", updatedData);
 
         assertNotNull(updated);
-        assertEquals("123", updated.getId());
         verify(listingRepository, times(1)).save(sampleListing);
+        assertEquals("Laptop Test Updated", sampleListing.getTitle());
     }
 
     @Test
     void testUpdateListing_NotFound() {
-        when(listingRepository.existsById("999")).thenReturn(false);
+        when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
-        Listing updated = listingService.updateListing("999", sampleListing);
+        Listing updatedData = new Listing();
+        Listing updated = listingService.updateListing("999", updatedData);
 
         assertNull(updated);
         verify(listingRepository, never()).save(any(Listing.class));
     }
-
 
     @Test
     void testDeleteListing() {
