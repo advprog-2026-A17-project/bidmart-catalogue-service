@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.config.AuthInterceptor;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,19 +31,23 @@ class ListingControllerTest {
     @MockBean
     private ListingService listingService;
 
+    @MockBean
+    private AuthInterceptor authInterceptor;
+
     @Autowired
     private ObjectMapper objectMapper;
 
     private Listing sampleListing;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         sampleListing = Listing.builder()
                 .id("123")
                 .title("Kamera Test")
                 .category("Fotografi")
                 .startingPrice(new BigDecimal("500000"))
                 .build();
+        when(authInterceptor.preHandle(any(), any(), any())).thenReturn(true);
     }
 
     @Test
