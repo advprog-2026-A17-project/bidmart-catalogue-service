@@ -43,9 +43,11 @@ class ListingControllerTest {
     void setUp() throws Exception {
         sampleListing = Listing.builder()
                 .id("123")
+                .sellerId("seller-123")
                 .title("Kamera Test")
                 .category("Fotografi")
                 .startingPrice(new BigDecimal("500000"))
+                .status("ACTIVE")
                 .build();
         when(authInterceptor.preHandle(any(), any(), any())).thenReturn(true);
     }
@@ -68,6 +70,25 @@ class ListingControllerTest {
         mockMvc.perform(get("/api/v1/catalogue/listings/123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Kamera Test"));
+    }
+
+    @Test
+    void testGetListingSummaryByIdEndpoint() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(get("/api/v1/catalogue/listings/123/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("123"))
+                .andExpect(jsonPath("$.sellerId").value("seller-123"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void testGetListingSummaryByIdEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        mockMvc.perform(get("/api/v1/catalogue/listings/999/summary"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.controller;
 
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingSummaryResponse;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,20 @@ public class ListingController {
     @GetMapping("/{id}")
     public ResponseEntity<Listing> getById(@PathVariable String id) {
         return ResponseEntity.ok(listingService.getListingById(id));
+    }
+
+    @GetMapping("/{id}/summary")
+    public ResponseEntity<ListingSummaryResponse> getSummaryById(@PathVariable String id) {
+        Listing listing = listingService.getListingById(id);
+        if (listing == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(ListingSummaryResponse.builder()
+                .id(listing.getId())
+                .sellerId(listing.getSellerId())
+                .status(listing.getStatus())
+                .build());
     }
 
     @GetMapping("/search")
