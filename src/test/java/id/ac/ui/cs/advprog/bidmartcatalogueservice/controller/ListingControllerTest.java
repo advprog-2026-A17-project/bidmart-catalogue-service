@@ -190,4 +190,29 @@ class ListingControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].title").value("Kamera Test"));
     }
+
+    @Test
+    void testCancelListingEndpoint_WhenNoBids() throws Exception {
+        Listing cancelledListing = Listing.builder()
+                .id("123")
+                .title("Kamera Test")
+                .status("CANCELLED")
+                .hasBids(false)
+                .build();
+        when(listingService.cancelListing("123")).thenReturn(cancelledListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void testCancelListingEndpoint_WhenListingHasBids() throws Exception {
+        when(listingService.cancelListing("123"))
+                .thenThrow(new IllegalStateException("Listing has active bids"));
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Listing has active bids"));
+    }
 }
