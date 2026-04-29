@@ -11,5 +11,6 @@ public interface ListingService {
     List<Listing> getAllListings();
     List<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, String status);
     Listing updateListing(String id, Listing listing);
+    Listing cancelListing(String id);
     void deleteListing(String id);
 }
