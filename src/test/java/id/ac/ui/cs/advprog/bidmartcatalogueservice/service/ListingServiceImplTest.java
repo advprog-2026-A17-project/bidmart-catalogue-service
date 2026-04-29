@@ -151,4 +151,30 @@ class ListingServiceImplTest {
 
         verify(listingRepository, times(1)).deleteById("123");
     }
+
+    @Test
+    void testCancelListing_WhenNoBids() {
+        sampleListing.setHasBids(false);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenReturn(sampleListing);
+
+        Listing cancelled = listingService.cancelListing("123");
+
+        assertEquals("CANCELLED", cancelled.getStatus());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testCancelListing_WhenHasBids() {
+        sampleListing.setHasBids(true);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> listingService.cancelListing("123")
+        );
+
+        assertEquals("Listing has active bids", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
 }
