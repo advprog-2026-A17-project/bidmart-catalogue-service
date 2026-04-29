@@ -55,6 +55,17 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
+    public Listing cancelListing(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.isHasBids()) {
+                throw new IllegalStateException("Listing has active bids");
+            }
+            existingListing.setStatus("CANCELLED");
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
     public void deleteListing(String id) {
         listingRepository.deleteById(id);
     }
