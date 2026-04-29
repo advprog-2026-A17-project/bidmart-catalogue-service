@@ -33,4 +33,7 @@ public class Listing {
 
     private LocalDateTime endTime;
     private String status; // DRAFT, ACTIVE, SOLD, CANCELLED
+
+    @Builder.Default
+    private boolean hasBids = false;
 }
