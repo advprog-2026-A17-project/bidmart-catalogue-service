@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/catalogue/listings")
@@ -73,5 +74,18 @@ public class ListingController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancel(@PathVariable String id) {
+        try {
+            Listing cancelledListing = listingService.cancelListing(id);
+            if (cancelledListing == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(cancelledListing);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
     }
 }
