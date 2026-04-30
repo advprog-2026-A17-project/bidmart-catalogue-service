@@ -3,7 +3,6 @@ package id.ac.ui.cs.advprog.bidmartcatalogueservice.service;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.specification.ListingSpecification;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -13,8 +12,11 @@ import java.util.List;
 @Service
 public class ListingServiceImpl implements ListingService {
 
-    @Autowired
-    private ListingRepository listingRepository;
+    private final ListingRepository listingRepository;
+
+    public ListingServiceImpl(ListingRepository listingRepository) {
+        this.listingRepository = listingRepository;
+    }
 
     @Override
     public Listing createListing(Listing listing) {
@@ -50,6 +52,17 @@ public class ListingServiceImpl implements ListingService {
             existingListing.setEndTime(listing.getEndTime());
             existingListing.setSellerId(listing.getSellerId());
             existingListing.setCategory(listing.getCategory());
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing cancelListing(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.isHasBids()) {
+                throw new IllegalStateException("Listing has active bids");
+            }
+            existingListing.setStatus("CANCELLED");
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
