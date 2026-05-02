@@ -18,7 +18,8 @@ public class ListingController {
     private ListingService listingService;
 
     @PostMapping
-    public ResponseEntity<Listing> create(@RequestBody Listing listing) {
+    public ResponseEntity<Listing> create(@RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
+        listing.setSellerId(sellerId);
         return ResponseEntity.ok(listingService.createListing(listing));
     }
 
@@ -57,18 +58,26 @@ public class ListingController {
         return ResponseEntity.ok(listingService.searchListings(category, keyword, minPrice, maxPrice, status));
     }
     @PutMapping("/{id}")
-    public ResponseEntity<Listing> update(@PathVariable String id, @RequestBody Listing listing) {
-        Listing updatedListing = listingService.updateListing(id, listing);
-        if (updatedListing != null) {
-            return ResponseEntity.ok(updatedListing);
+    public ResponseEntity<Listing> update(@PathVariable String id, @RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.notFound().build();
+        if (!existingListing.getSellerId().equals(sellerId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        listing.setSellerId(sellerId);
+        Listing updatedListing = listingService.updateListing(id, listing);
+        return ResponseEntity.ok(updatedListing);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing != null) {
+            if (!existingListing.getSellerId().equals(sellerId)) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+            }
             listingService.deleteListing(id);
             return ResponseEntity.noContent().build();
         }
