@@ -99,6 +99,7 @@ class ListingControllerTest {
 
         mockMvc.perform(post("/api/v1/catalogue/listings")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Kamera Test"));
@@ -107,12 +108,14 @@ class ListingControllerTest {
     @Test
     void testUpdateListingEndpoint_Found() throws Exception {
         Listing updatedListing = Listing.builder().id("123").title("Kamera Update").build();
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
         when(listingService.updateListing(eq("123"), any(Listing.class))).thenReturn(updatedListing);
 
         String requestBody = objectMapper.writeValueAsString(updatedListing);
 
         mockMvc.perform(put("/api/v1/catalogue/listings/123")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Kamera Update"));
@@ -120,15 +123,30 @@ class ListingControllerTest {
 
     @Test
     void testUpdateListingEndpoint_NotFound() throws Exception {
-        when(listingService.updateListing(eq("999"), any(Listing.class))).thenReturn(null);
+        when(listingService.getListingById("999")).thenReturn(null);
 
         Listing updatedListing = Listing.builder().id("999").title("NotFound").build();
         String requestBody = objectMapper.writeValueAsString(updatedListing);
 
         mockMvc.perform(put("/api/v1/catalogue/listings/999")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
                         .content(requestBody))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testUpdateListingEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        Listing updatedListing = Listing.builder().id("123").title("Kamera Update").build();
+        String requestBody = objectMapper.writeValueAsString(updatedListing);
+
+        mockMvc.perform(put("/api/v1/catalogue/listings/123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "wrong-seller")
+                        .content(requestBody))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -136,7 +154,8 @@ class ListingControllerTest {
         when(listingService.getListingById("123")).thenReturn(sampleListing);
         doNothing().when(listingService).deleteListing("123");
 
-        mockMvc.perform(delete("/api/v1/catalogue/listings/123"))
+        mockMvc.perform(delete("/api/v1/catalogue/listings/123")
+                        .header("X-userid", "seller-123"))
                 .andExpect(status().isNoContent());
     }
 
@@ -144,8 +163,18 @@ class ListingControllerTest {
     void testDeleteListingEndpoint_NotFound() throws Exception {
         when(listingService.getListingById("999")).thenReturn(null);
 
-        mockMvc.perform(delete("/api/v1/catalogue/listings/999"))
+        mockMvc.perform(delete("/api/v1/catalogue/listings/999")
+                        .header("X-userid", "seller-123"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testDeleteListingEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(delete("/api/v1/catalogue/listings/123")
+                        .header("X-userid", "wrong-seller"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
