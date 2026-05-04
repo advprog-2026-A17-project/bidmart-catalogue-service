@@ -1,8 +1,13 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.service;
 
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Category;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.specification.ListingSpecification;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ImageUrlValidator;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -13,13 +18,17 @@ import java.util.List;
 public class ListingServiceImpl implements ListingService {
 
     private final ListingRepository listingRepository;
+    private final CategoryRepository categoryRepository;
 
-    public ListingServiceImpl(ListingRepository listingRepository) {
+    public ListingServiceImpl(ListingRepository listingRepository, CategoryRepository categoryRepository) {
         this.listingRepository = listingRepository;
+        this.categoryRepository = categoryRepository;
     }
 
     @Override
     public Listing createListing(Listing listing) {
+        validateImageUrl(listing.getImageUrl());
+        resolveCategory(listing);
         if (listing.getStatus() == null) {
             listing.setStatus("ACTIVE");
         }
@@ -30,15 +39,16 @@ public class ListingServiceImpl implements ListingService {
     public Listing getListingById(String id) {
         return listingRepository.findById(id).orElse(null);
     }
+
     @Override
     public List<Listing> getAllListings() {
         return listingRepository.findAll();
     }
 
     @Override
-    public List<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, String status) {
+    public Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, String status, Pageable pageable) {
         Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status);
-        return listingRepository.findAll(spec);
+        return listingRepository.findAll(spec, pageable);
     }
 
     @Override
@@ -47,6 +57,8 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.isHasBids()) {
                 throw new IllegalStateException("Cannot update listing with active bids");
             }
+            validateImageUrl(listing.getImageUrl());
+            resolveCategory(listing);
             existingListing.setTitle(listing.getTitle());
             existingListing.setDescription(listing.getDescription());
             existingListing.setImageUrl(listing.getImageUrl());
@@ -55,6 +67,7 @@ public class ListingServiceImpl implements ListingService {
             existingListing.setEndTime(listing.getEndTime());
             existingListing.setSellerId(listing.getSellerId());
             existingListing.setCategory(listing.getCategory());
+            existingListing.setCategoryEntity(listing.getCategoryEntity());
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -82,5 +95,20 @@ public class ListingServiceImpl implements ListingService {
             existingListing.setCurrentPrice(newPrice);
             return listingRepository.save(existingListing);
         }).orElse(null);
+    }
+
+    private void resolveCategory(Listing listing) {
+        if (listing.getCategoryEntity() != null && listing.getCategoryEntity().getId() != null) {
+            Category category = categoryRepository.findById(listing.getCategoryEntity().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + listing.getCategoryEntity().getId()));
+            listing.setCategoryEntity(category);
+            listing.setCategory(category.getName());
+        }
+    }
+
+    private void validateImageUrl(String imageUrl) {
+        if (!ImageUrlValidator.isValidImageUrl(imageUrl)) {
+            throw new IllegalArgumentException("Invalid image URL format: " + imageUrl);
+        }
     }
 }

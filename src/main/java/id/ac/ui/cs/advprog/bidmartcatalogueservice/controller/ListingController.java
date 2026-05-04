@@ -6,6 +6,10 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingSummaryResponse;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,18 +30,22 @@ public class ListingController {
     }
 
     @PostMapping
-    public ResponseEntity<Listing> create(@RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
-        listing.setSellerId(sellerId);
-        Listing created = listingService.createListing(listing);
+    public ResponseEntity<?> create(@RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
+        try {
+            listing.setSellerId(sellerId);
+            Listing created = listingService.createListing(listing);
 
-        listingEventPublisher.publishListingCreated(new ListingCreatedEvent(
-                created.getId(),
-                created.getSellerId(),
-                created.getStartingPrice(),
-                created.getStatus()
-        ));
+            listingEventPublisher.publishListingCreated(new ListingCreatedEvent(
+                    created.getId(),
+                    created.getSellerId(),
+                    created.getStartingPrice(),
+                    created.getStatus()
+            ));
 
-        return ResponseEntity.ok(created);
+            return ResponseEntity.ok(created);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+        }
     }
 
     @GetMapping
@@ -65,14 +73,23 @@ public class ListingController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Listing>> search(
+    public ResponseEntity<Page<Listing>> search(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "title") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
 
-        return ResponseEntity.ok(listingService.searchListings(category, keyword, minPrice, maxPrice, status));
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return ResponseEntity.ok(listingService.searchListings(category, keyword, minPrice, maxPrice, status, pageable));
     }
 
     @PutMapping("/{id}")
@@ -91,6 +108,8 @@ public class ListingController {
             return ResponseEntity.ok(updatedListing);
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
     }
 
