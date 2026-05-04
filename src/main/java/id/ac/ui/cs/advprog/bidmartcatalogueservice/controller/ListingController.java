@@ -1,6 +1,9 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.controller;
 
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingCreatedEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingSummaryResponse;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.springframework.http.ResponseEntity;
@@ -15,15 +18,26 @@ import java.util.Map;
 public class ListingController {
 
     private final ListingService listingService;
+    private final ListingEventPublisher listingEventPublisher;
 
-    public ListingController(ListingService listingService) {
+    public ListingController(ListingService listingService, ListingEventPublisher listingEventPublisher) {
         this.listingService = listingService;
+        this.listingEventPublisher = listingEventPublisher;
     }
 
     @PostMapping
     public ResponseEntity<Listing> create(@RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
         listing.setSellerId(sellerId);
-        return ResponseEntity.ok(listingService.createListing(listing));
+        Listing created = listingService.createListing(listing);
+
+        listingEventPublisher.publishListingCreated(new ListingCreatedEvent(
+                created.getId(),
+                created.getSellerId(),
+                created.getStartingPrice(),
+                created.getStatus()
+        ));
+
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping
@@ -60,8 +74,9 @@ public class ListingController {
 
         return ResponseEntity.ok(listingService.searchListings(category, keyword, minPrice, maxPrice, status));
     }
+
     @PutMapping("/{id}")
-    public ResponseEntity<Listing> update(@PathVariable String id, @RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
+    public ResponseEntity<?> update(@PathVariable String id, @RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -69,9 +84,14 @@ public class ListingController {
         if (!existingListing.getSellerId().equals(sellerId)) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
         }
-        listing.setSellerId(sellerId);
-        Listing updatedListing = listingService.updateListing(id, listing);
-        return ResponseEntity.ok(updatedListing);
+
+        try {
+            listing.setSellerId(sellerId);
+            Listing updatedListing = listingService.updateListing(id, listing);
+            return ResponseEntity.ok(updatedListing);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -88,15 +108,29 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<?> cancel(@PathVariable String id) {
+    public ResponseEntity<?> cancel(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!existingListing.getSellerId().equals(sellerId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+
         try {
             Listing cancelledListing = listingService.cancelListing(id);
-            if (cancelledListing == null) {
-                return ResponseEntity.notFound().build();
-            }
             return ResponseEntity.ok(cancelledListing);
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
+    }
+
+    @PostMapping("/{id}/bid")
+    public ResponseEntity<?> bidPlaced(@PathVariable String id, @RequestBody BidPlacedEvent event) {
+        Listing updated = listingService.handleBidPlaced(id, event.amount());
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(updated);
     }
 }
