@@ -1,6 +1,8 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.service;
 
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Category;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,6 +10,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
@@ -24,6 +30,9 @@ class ListingServiceImplTest {
 
     @Mock
     private ListingRepository listingRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
 
     @InjectMocks
     private ListingServiceImpl listingService;
@@ -102,13 +111,16 @@ class ListingServiceImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void testSearchListings() {
-        when(listingRepository.findAll(any(Specification.class))).thenReturn(Arrays.asList(sampleListing));
+    void testSearchListings_WithPagination() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing), pageable, 1);
+        when(listingRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        List<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, "ACTIVE");
+        Page<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, "ACTIVE", pageable);
 
-        assertEquals(1, result.size());
-        verify(listingRepository, times(1)).findAll(any(Specification.class));
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+        verify(listingRepository, times(1)).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
@@ -119,7 +131,7 @@ class ListingServiceImplTest {
         Listing updatedData = Listing.builder()
                 .title("Laptop Test Updated")
                 .description("Desc")
-                .imageUrl("http://img.com")
+                .imageUrl("http://img.com/photo.jpg")
                 .startingPrice(new BigDecimal("12000"))
                 .currentPrice(new BigDecimal("15000"))
                 .sellerId("usr")
@@ -212,6 +224,117 @@ class ListingServiceImplTest {
         Listing result = listingService.handleBidPlaced("999", new BigDecimal("12000"));
 
         assertNull(result);
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testCreateListing_WithCategoryId() {
+        Category category = Category.builder().id(1L).name("Elektronik").build();
+        Listing listing = Listing.builder()
+                .title("Laptop")
+                .categoryEntity(Category.builder().id(1L).build())
+                .startingPrice(new BigDecimal("10000"))
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(listing);
+
+        assertNotNull(created);
+        assertEquals("Elektronik", created.getCategory());
+        assertEquals("Elektronik", created.getCategoryEntity().getName());
+        verify(categoryRepository).findById(1L);
+    }
+
+    @Test
+    void testCreateListing_WithInvalidCategoryId() {
+        Listing listing = Listing.builder()
+                .title("Laptop")
+                .categoryEntity(Category.builder().id(999L).build())
+                .startingPrice(new BigDecimal("10000"))
+                .build();
+
+        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertTrue(exception.getMessage().contains("Category not found"));
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testUpdateListing_WithCategoryId() {
+        Category category = Category.builder().id(2L).name("Olahraga").build();
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(categoryRepository.findById(2L)).thenReturn(Optional.of(category));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing updatedData = Listing.builder()
+                .title("Sepeda Lipat")
+                .categoryEntity(Category.builder().id(2L).build())
+                .sellerId("usr")
+                .build();
+
+        Listing updated = listingService.updateListing("123", updatedData);
+
+        assertNotNull(updated);
+        assertEquals("Olahraga", sampleListing.getCategory());
+        verify(categoryRepository).findById(2L);
+    }
+
+    @Test
+    void testCreateListing_WithValidImageUrl() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .imageUrl("https://example.com/camera.jpg")
+                .startingPrice(new BigDecimal("5000"))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(listing);
+
+        assertNotNull(created);
+        assertEquals("https://example.com/camera.jpg", created.getImageUrl());
+    }
+
+    @Test
+    void testCreateListing_WithInvalidImageUrl() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .imageUrl("not-a-valid-url")
+                .startingPrice(new BigDecimal("5000"))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertTrue(exception.getMessage().contains("Invalid image URL"));
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testUpdateListing_WithInvalidImageUrl() {
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        Listing updatedData = Listing.builder()
+                .title("Laptop Updated")
+                .imageUrl("ftp://invalid.com/image.jpg")
+                .sellerId("usr")
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.updateListing("123", updatedData)
+        );
+
+        assertTrue(exception.getMessage().contains("Invalid image URL"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 }
