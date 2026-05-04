@@ -2,6 +2,8 @@ package id.ac.ui.cs.advprog.bidmartcatalogueservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.config.AuthInterceptor;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,8 +19,7 @@ import java.util.Arrays;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -33,6 +34,9 @@ class ListingControllerTest {
 
     @MockBean
     private AuthInterceptor authInterceptor;
+
+    @MockBean
+    private ListingEventPublisher listingEventPublisher;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -103,6 +107,8 @@ class ListingControllerTest {
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Kamera Test"));
+
+        verify(listingEventPublisher).publishListingCreated(any());
     }
 
     @Test
@@ -150,6 +156,23 @@ class ListingControllerTest {
     }
 
     @Test
+    void testUpdateListingEndpoint_Conflict_WhenHasBids() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.updateListing(eq("123"), any(Listing.class)))
+                .thenThrow(new IllegalStateException("Cannot update listing with active bids"));
+
+        Listing updatedListing = Listing.builder().id("123").title("Kamera Update").build();
+        String requestBody = objectMapper.writeValueAsString(updatedListing);
+
+        mockMvc.perform(put("/api/v1/catalogue/listings/123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
+                        .content(requestBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Cannot update listing with active bids"));
+    }
+
+    @Test
     void testDeleteListingEndpoint_Found() throws Exception {
         when(listingService.getListingById("123")).thenReturn(sampleListing);
         doNothing().when(listingService).deleteListing("123");
@@ -193,26 +216,84 @@ class ListingControllerTest {
 
     @Test
     void testCancelListingEndpoint_WhenNoBids() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
         Listing cancelledListing = Listing.builder()
                 .id("123")
+                .sellerId("seller-123")
                 .title("Kamera Test")
                 .status("CANCELLED")
                 .hasBids(false)
                 .build();
         when(listingService.cancelListing("123")).thenReturn(cancelledListing);
 
-        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel"))
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
+                        .header("X-userid", "seller-123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
 
     @Test
     void testCancelListingEndpoint_WhenListingHasBids() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
         when(listingService.cancelListing("123"))
                 .thenThrow(new IllegalStateException("Listing has active bids"));
 
-        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel"))
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
+                        .header("X-userid", "seller-123"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Listing has active bids"));
+    }
+
+    @Test
+    void testCancelListingEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
+                        .header("X-userid", "wrong-seller"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testCancelListingEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/cancel")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testBidPlacedEndpoint_Success() throws Exception {
+        Listing updatedListing = Listing.builder()
+                .id("123")
+                .sellerId("seller-123")
+                .title("Kamera Test")
+                .currentPrice(new BigDecimal("600000"))
+                .hasBids(true)
+                .build();
+        when(listingService.handleBidPlaced(eq("123"), any(BigDecimal.class))).thenReturn(updatedListing);
+
+        BidPlacedEvent event = new BidPlacedEvent("123", new BigDecimal("600000"));
+        String requestBody = objectMapper.writeValueAsString(event);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/bid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasBids").value(true))
+                .andExpect(jsonPath("$.currentPrice").value(600000));
+    }
+
+    @Test
+    void testBidPlacedEndpoint_NotFound() throws Exception {
+        when(listingService.handleBidPlaced(eq("999"), any(BigDecimal.class))).thenReturn(null);
+
+        BidPlacedEvent event = new BidPlacedEvent("999", new BigDecimal("600000"));
+        String requestBody = objectMapper.writeValueAsString(event);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/bid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound());
     }
 }

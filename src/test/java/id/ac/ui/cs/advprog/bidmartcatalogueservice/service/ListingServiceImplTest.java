@@ -177,4 +177,41 @@ class ListingServiceImplTest {
         assertEquals("Listing has active bids", exception.getMessage());
         verify(listingRepository, never()).save(any(Listing.class));
     }
+
+    @Test
+    void testUpdateListing_WhenHasBids_ThrowsException() {
+        sampleListing.setHasBids(true);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> listingService.updateListing("123", new Listing())
+        );
+
+        assertEquals("Cannot update listing with active bids", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testHandleBidPlaced_Success() {
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing result = listingService.handleBidPlaced("123", new BigDecimal("12000"));
+
+        assertNotNull(result);
+        assertTrue(result.isHasBids());
+        assertEquals(new BigDecimal("12000"), result.getCurrentPrice());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testHandleBidPlaced_NotFound() {
+        when(listingRepository.findById("999")).thenReturn(Optional.empty());
+
+        Listing result = listingService.handleBidPlaced("999", new BigDecimal("12000"));
+
+        assertNull(result);
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
 }
