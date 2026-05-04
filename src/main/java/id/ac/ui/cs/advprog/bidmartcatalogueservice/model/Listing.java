@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -24,8 +25,13 @@ public class Listing {
     private String sellerId;
     private String title;
     private String description;
-    private String category;
+    private String category; // tetap dipertahankan untuk backward compatibility
     private String imageUrl;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Category categoryEntity;
 
     private BigDecimal startingPrice;
     private BigDecimal reservePrice;
