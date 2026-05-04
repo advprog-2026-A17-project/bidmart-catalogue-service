@@ -3,19 +3,22 @@ package id.ac.ui.cs.advprog.bidmartcatalogueservice.controller;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingSummaryResponse;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/catalogue/listings")
 public class ListingController {
 
-    @Autowired
-    private ListingService listingService;
+    private final ListingService listingService;
+
+    public ListingController(ListingService listingService) {
+        this.listingService = listingService;
+    }
 
     @PostMapping
     public ResponseEntity<Listing> create(@RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
@@ -82,5 +85,18 @@ public class ListingController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancel(@PathVariable String id) {
+        try {
+            Listing cancelledListing = listingService.cancelListing(id);
+            if (cancelledListing == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(cancelledListing);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
     }
 }
