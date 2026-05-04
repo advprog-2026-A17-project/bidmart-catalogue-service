@@ -13,4 +13,5 @@ public interface ListingService {
     Listing updateListing(String id, Listing listing);
     Listing cancelListing(String id);
     void deleteListing(String id);
+    Listing handleBidPlaced(String listingId, java.math.BigDecimal newPrice);
 }
