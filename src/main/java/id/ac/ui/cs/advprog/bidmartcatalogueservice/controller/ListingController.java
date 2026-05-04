@@ -277,4 +277,13 @@ public class ListingController {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
     }
+
+    @PostMapping("/{id}/bid")
+    public ResponseEntity<?> bidPlaced(@PathVariable String id, @RequestBody BidPlacedEvent event) {
+        Listing updated = listingService.handleBidPlaced(id, event.amount());
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(updated);
+    }
 }
