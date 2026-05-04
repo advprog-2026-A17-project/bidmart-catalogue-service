@@ -44,6 +44,9 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing updateListing(String id, Listing listing) {
         return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.isHasBids()) {
+                throw new IllegalStateException("Cannot update listing with active bids");
+            }
             existingListing.setTitle(listing.getTitle());
             existingListing.setDescription(listing.getDescription());
             existingListing.setImageUrl(listing.getImageUrl());
@@ -70,5 +73,14 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public void deleteListing(String id) {
         listingRepository.deleteById(id);
+    }
+
+    @Override
+    public Listing handleBidPlaced(String listingId, BigDecimal newPrice) {
+        return listingRepository.findById(listingId).map(existingListing -> {
+            existingListing.setHasBids(true);
+            existingListing.setCurrentPrice(newPrice);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
     }
 }
