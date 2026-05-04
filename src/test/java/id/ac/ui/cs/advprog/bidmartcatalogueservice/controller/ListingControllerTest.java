@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -112,6 +115,26 @@ class ListingControllerTest {
     }
 
     @Test
+    void testCreateListing_WithInvalidImageUrl_Returns400() throws Exception {
+        when(listingService.createListing(any(Listing.class)))
+                .thenThrow(new IllegalArgumentException("Invalid image URL format: not-a-url"));
+
+        Listing badListing = Listing.builder()
+                .title("Kamera Test")
+                .imageUrl("not-a-url")
+                .startingPrice(new BigDecimal("500000"))
+                .build();
+        String requestBody = objectMapper.writeValueAsString(badListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid image URL format: not-a-url"));
+    }
+
+    @Test
     void testUpdateListingEndpoint_Found() throws Exception {
         Listing updatedListing = Listing.builder().id("123").title("Kamera Update").build();
         when(listingService.getListingById("123")).thenReturn(sampleListing);
@@ -173,6 +196,27 @@ class ListingControllerTest {
     }
 
     @Test
+    void testUpdateListing_WithInvalidImageUrl_Returns400() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.updateListing(eq("123"), any(Listing.class)))
+                .thenThrow(new IllegalArgumentException("Invalid image URL format: ftp://bad.com"));
+
+        Listing badListing = Listing.builder()
+                .id("123")
+                .title("Kamera Update")
+                .imageUrl("ftp://bad.com")
+                .build();
+        String requestBody = objectMapper.writeValueAsString(badListing);
+
+        mockMvc.perform(put("/api/v1/catalogue/listings/123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid image URL format: ftp://bad.com"));
+    }
+
+    @Test
     void testDeleteListingEndpoint_Found() throws Exception {
         when(listingService.getListingById("123")).thenReturn(sampleListing);
         doNothing().when(listingService).deleteListing("123");
@@ -201,17 +245,36 @@ class ListingControllerTest {
     }
 
     @Test
-    void testSearchListingsEndpoint() throws Exception {
-        when(listingService.searchListings(eq("Fotografi"), eq("Kamera"), any(), any(), eq("ACTIVE")))
-                .thenReturn(Arrays.asList(sampleListing));
+    @SuppressWarnings("unchecked")
+    void testSearchListingsEndpoint_WithPagination() throws Exception {
+        Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
+        when(listingService.searchListings(eq("Fotografi"), eq("Kamera"), any(), any(), eq("ACTIVE"), any(Pageable.class)))
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/catalogue/listings/search")
                         .param("category", "Fotografi")
                         .param("keyword", "Kamera")
-                        .param("status", "ACTIVE"))
+                        .param("status", "ACTIVE")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sortBy", "title")
+                        .param("sortDir", "asc"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].title").value("Kamera Test"));
+                .andExpect(jsonPath("$.content[0].title").value("Kamera Test"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSearchListingsEndpoint_WithDefaults() throws Exception {
+        Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
+        when(listingService.searchListings(any(), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/api/v1/catalogue/listings/search"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].title").value("Kamera Test"));
     }
 
     @Test
