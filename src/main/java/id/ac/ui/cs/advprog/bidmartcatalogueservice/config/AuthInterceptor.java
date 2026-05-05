@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -16,7 +17,13 @@ import java.util.Map;
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
 
-    private static final String JWT_SECRET = "bidmart-auth-secret-key-bidmart-auth-secret-key";
+    private final String jwtSecret;
+
+    public AuthInterceptor(
+            @Value("${bidmart.auth.jwt-secret:bidmart-auth-secret-key-bidmart-auth-secret-key}") String jwtSecret
+    ) {
+        this.jwtSecret = jwtSecret;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -39,7 +46,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         String token = authHeader.substring(7);
 
         try {
-            SecretKey key = Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
+            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
