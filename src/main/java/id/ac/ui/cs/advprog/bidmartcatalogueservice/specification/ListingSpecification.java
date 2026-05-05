@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.specification;
 
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
@@ -8,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ListingSpecification {
-    public static Specification<Listing> filterListings(String keyword, String category, BigDecimal minPrice, BigDecimal maxPrice, String status) {
+    public static Specification<Listing> filterListings(String keyword, String category, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -24,11 +25,11 @@ public class ListingSpecification {
             if (maxPrice != null) {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("currentPrice"), maxPrice));
             }
-            if (status != null && !status.trim().isEmpty()) {
+            if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
     }
-}
+}
