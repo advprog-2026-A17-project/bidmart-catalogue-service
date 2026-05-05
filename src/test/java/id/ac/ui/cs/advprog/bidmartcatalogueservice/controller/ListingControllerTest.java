@@ -5,6 +5,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.config.AuthInterceptor;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,7 +56,7 @@ class ListingControllerTest {
                 .title("Kamera Test")
                 .category("Fotografi")
                 .startingPrice(new BigDecimal("500000"))
-                .status("ACTIVE")
+                .status(ListingStatus.ACTIVE)
                 .build();
         when(authInterceptor.preHandle(any(), any(), any())).thenReturn(true);
     }
@@ -248,7 +250,7 @@ class ListingControllerTest {
     @SuppressWarnings("unchecked")
     void testSearchListingsEndpoint_WithPagination() throws Exception {
         Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
-        when(listingService.searchListings(eq("Fotografi"), eq("Kamera"), any(), any(), eq("ACTIVE"), any(Pageable.class)))
+        when(listingService.searchListings(eq("Fotografi"), eq("Kamera"), any(), any(), eq(ListingStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/catalogue/listings/search")
@@ -284,7 +286,7 @@ class ListingControllerTest {
                 .id("123")
                 .sellerId("seller-123")
                 .title("Kamera Test")
-                .status("CANCELLED")
+                .status(ListingStatus.CANCELLED)
                 .hasBids(false)
                 .build();
         when(listingService.cancelListing("123")).thenReturn(cancelledListing);
@@ -358,5 +360,185 @@ class ListingControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testBidPlacedEndpoint_Conflict_WhenInvalidStatus() throws Exception {
+        when(listingService.handleBidPlaced(eq("123"), any(BigDecimal.class)))
+                .thenThrow(new IllegalStateException("Cannot place bid on listing with status: DRAFT"));
+
+        BidPlacedEvent event = new BidPlacedEvent("123", new BigDecimal("600000"));
+        String requestBody = objectMapper.writeValueAsString(event);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/bid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Cannot place bid on listing with status: DRAFT"));
+    }
+
+    // ===== New endpoint tests =====
+
+    @Test
+    void testPublishEndpoint_Success() throws Exception {
+        Listing publishedListing = Listing.builder()
+                .id("123")
+                .sellerId("seller-123")
+                .title("Kamera Test")
+                .status(ListingStatus.ACTIVE)
+                .build();
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.publishListing("123")).thenReturn(publishedListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void testPublishEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/publish")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testPublishEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
+                        .header("X-userid", "wrong-seller"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testPublishEndpoint_Conflict() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.publishListing("123"))
+                .thenThrow(new IllegalStateException("Only DRAFT listings can be published"));
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Only DRAFT listings can be published"));
+    }
+
+    @Test
+    void testAuctionCreatedEndpoint_Success() throws Exception {
+        Listing result = Listing.builder()
+                .id("123")
+                .sellerId("seller-123")
+                .status(ListingStatus.AUCTION_CREATED)
+                .build();
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.markAuctionCreated("123")).thenReturn(result);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AUCTION_CREATED"));
+    }
+
+    @Test
+    void testAuctionCreatedEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/auction-created")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testAuctionCreatedEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
+                        .header("X-userid", "wrong-seller"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testSoldEndpoint_Success() throws Exception {
+        Listing result = Listing.builder()
+                .id("123")
+                .sellerId("seller-123")
+                .status(ListingStatus.SOLD)
+                .currentPrice(new BigDecimal("750000"))
+                .build();
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.markSold(eq("123"), any(BigDecimal.class))).thenReturn(result);
+
+        String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/sold")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SOLD"))
+                .andExpect(jsonPath("$.currentPrice").value(750000));
+    }
+
+    @Test
+    void testSoldEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/sold")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "seller-123")
+                        .content(body))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testSoldEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/sold")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-userid", "wrong-seller")
+                        .content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testUnsoldEndpoint_Success() throws Exception {
+        Listing result = Listing.builder()
+                .id("123")
+                .sellerId("seller-123")
+                .status(ListingStatus.UNSOLD)
+                .build();
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.markUnsold("123")).thenReturn(result);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/unsold")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNSOLD"));
+    }
+
+    @Test
+    void testUnsoldEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/unsold")
+                        .header("X-userid", "seller-123"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testUnsoldEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/unsold")
+                        .header("X-userid", "wrong-seller"))
+                .andExpect(status().isForbidden());
     }
 }
