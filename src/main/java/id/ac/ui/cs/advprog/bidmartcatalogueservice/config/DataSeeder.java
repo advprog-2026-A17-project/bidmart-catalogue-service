@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.config;
 
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +29,7 @@ public class DataSeeder {
                         .reservePrice(new BigDecimal("17000000"))
                         .currentPrice(new BigDecimal("15000000"))
                         .endTime(LocalDateTime.now().plusDays(7))
-                        .status("ACTIVE")
+                        .status(ListingStatus.ACTIVE)
                         .build();
 
                 Listing item2 = Listing.builder()
@@ -41,7 +42,7 @@ public class DataSeeder {
                         .reservePrice(new BigDecimal("28000000"))
                         .currentPrice(new BigDecimal("25000000"))
                         .endTime(LocalDateTime.now().plusDays(3))
-                        .status("ACTIVE")
+                        .status(ListingStatus.ACTIVE)
                         .build();
 
                 Listing item3 = Listing.builder()
@@ -54,7 +55,7 @@ public class DataSeeder {
                         .reservePrice(new BigDecimal("20000000"))
                         .currentPrice(new BigDecimal("18000000"))
                         .endTime(LocalDateTime.now().plusDays(5))
-                        .status("ACTIVE")
+                        .status(ListingStatus.ACTIVE)
                         .build();
 
                 // Simpan ke database
