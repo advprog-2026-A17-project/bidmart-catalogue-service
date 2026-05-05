@@ -21,7 +21,7 @@ class ListingTest {
                 .category("Olahraga")
                 .startingPrice(new BigDecimal("1500000"))
                 .currentPrice(new BigDecimal("1500000"))
-                .status("ACTIVE")
+                .status(ListingStatus.ACTIVE)
                 .endTime(endTime)
                 .build();
 
@@ -32,7 +32,7 @@ class ListingTest {
         assertEquals("Kondisi mulus 99%", listing.getDescription());
         assertEquals(new BigDecimal("1500000"), listing.getStartingPrice());
         assertEquals(new BigDecimal("1500000"), listing.getCurrentPrice());
-        assertEquals("ACTIVE", listing.getStatus());
+        assertEquals(ListingStatus.ACTIVE, listing.getStatus());
         assertEquals(endTime, listing.getEndTime());
     }
 
@@ -40,9 +40,32 @@ class ListingTest {
     void testListingSetters() {
         Listing listing = new Listing();
         listing.setTitle("Laptop Bekas");
-        listing.setStatus("DRAFT");
+        listing.setStatus(ListingStatus.DRAFT);
 
         assertEquals("Laptop Bekas", listing.getTitle());
-        assertEquals("DRAFT", listing.getStatus());
+        assertEquals(ListingStatus.DRAFT, listing.getStatus());
     }
-}
+
+    @Test
+    void testAllListingStatusValues() {
+        Listing listing = new Listing();
+
+        listing.setStatus(ListingStatus.DRAFT);
+        assertEquals(ListingStatus.DRAFT, listing.getStatus());
+
+        listing.setStatus(ListingStatus.ACTIVE);
+        assertEquals(ListingStatus.ACTIVE, listing.getStatus());
+
+        listing.setStatus(ListingStatus.AUCTION_CREATED);
+        assertEquals(ListingStatus.AUCTION_CREATED, listing.getStatus());
+
+        listing.setStatus(ListingStatus.SOLD);
+        assertEquals(ListingStatus.SOLD, listing.getStatus());
+
+        listing.setStatus(ListingStatus.UNSOLD);
+        assertEquals(ListingStatus.UNSOLD, listing.getStatus());
+
+        listing.setStatus(ListingStatus.CANCELLED);
+        assertEquals(ListingStatus.CANCELLED, listing.getStatus());
+    }
+}
