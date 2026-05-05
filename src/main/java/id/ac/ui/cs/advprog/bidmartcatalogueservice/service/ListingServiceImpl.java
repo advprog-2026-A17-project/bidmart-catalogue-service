@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.bidmartcatalogueservice.service;
 
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Category;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.specification.ListingSpecification;
@@ -30,7 +31,7 @@ public class ListingServiceImpl implements ListingService {
         validateImageUrl(listing.getImageUrl());
         resolveCategory(listing);
         if (listing.getStatus() == null) {
-            listing.setStatus("ACTIVE");
+            listing.setStatus(ListingStatus.DRAFT);
         }
         return listingRepository.save(listing);
     }
@@ -46,7 +47,7 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    public Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, String status, Pageable pageable) {
+    public Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, Pageable pageable) {
         Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status);
         return listingRepository.findAll(spec, pageable);
     }
@@ -56,6 +57,9 @@ public class ListingServiceImpl implements ListingService {
         return listingRepository.findById(id).map(existingListing -> {
             if (existingListing.isHasBids()) {
                 throw new IllegalStateException("Cannot update listing with active bids");
+            }
+            if (existingListing.getStatus() != ListingStatus.DRAFT && existingListing.getStatus() != ListingStatus.ACTIVE) {
+                throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
             validateImageUrl(listing.getImageUrl());
             resolveCategory(listing);
@@ -78,7 +82,10 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.isHasBids()) {
                 throw new IllegalStateException("Listing has active bids");
             }
-            existingListing.setStatus("CANCELLED");
+            if (existingListing.getStatus() != ListingStatus.DRAFT && existingListing.getStatus() != ListingStatus.ACTIVE) {
+                throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.CANCELLED);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -91,8 +98,56 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing handleBidPlaced(String listingId, BigDecimal newPrice) {
         return listingRepository.findById(listingId).map(existingListing -> {
+            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
+                throw new IllegalStateException("Cannot place bid on listing with status: " + existingListing.getStatus());
+            }
             existingListing.setHasBids(true);
             existingListing.setCurrentPrice(newPrice);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing publishListing(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.getStatus() != ListingStatus.DRAFT) {
+                throw new IllegalStateException("Only DRAFT listings can be published, current status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.ACTIVE);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing markAuctionCreated(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.getStatus() != ListingStatus.ACTIVE) {
+                throw new IllegalStateException("Only ACTIVE listings can be marked as AUCTION_CREATED, current status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.AUCTION_CREATED);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing markSold(String id, BigDecimal finalPrice) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
+                throw new IllegalStateException("Only AUCTION_CREATED listings can be marked as SOLD, current status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.SOLD);
+            existingListing.setCurrentPrice(finalPrice);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing markUnsold(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
+                throw new IllegalStateException("Only AUCTION_CREATED listings can be marked as UNSOLD, current status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.UNSOLD);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }

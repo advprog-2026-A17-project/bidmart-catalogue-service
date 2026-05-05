@@ -38,7 +38,9 @@ public class Listing {
     private BigDecimal currentPrice; //  update harga dari modul lelang
 
     private LocalDateTime endTime;
-    private String status; // DRAFT, ACTIVE, SOLD, CANCELLED
+
+    @Enumerated(EnumType.STRING)
+    private ListingStatus status; // DRAFT, ACTIVE, AUCTION_CREATED, SOLD, UNSOLD, CANCELLED
 
     @Builder.Default
     private boolean hasBids = false;
