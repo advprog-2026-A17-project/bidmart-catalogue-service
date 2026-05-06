@@ -1,0 +1,2 @@
+ALTER TABLE listings ALTER COLUMN image_url TYPE TEXT;
+ALTER TABLE items ALTER COLUMN image_url TYPE TEXT;

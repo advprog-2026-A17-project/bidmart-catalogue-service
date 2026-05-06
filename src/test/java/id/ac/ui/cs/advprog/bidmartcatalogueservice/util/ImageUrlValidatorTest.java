@@ -27,6 +27,13 @@ class ImageUrlValidatorTest {
     }
 
     @Test
+    void testValidImageDataUrl() {
+        assertTrue(ImageUrlValidator.isValidImageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"));
+        assertTrue(ImageUrlValidator.isValidImageUrl("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD"));
+        assertTrue(ImageUrlValidator.isValidImageUrl("data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AA/vuUAAA="));
+    }
+
+    @Test
     void testNullUrl_IsValid() {
         assertTrue(ImageUrlValidator.isValidImageUrl(null));
     }
@@ -55,5 +62,10 @@ class ImageUrlValidatorTest {
     @Test
     void testInvalidUrl_JavascriptProtocol() {
         assertFalse(ImageUrlValidator.isValidImageUrl("javascript:alert(1)"));
+    }
+
+    @Test
+    void testInvalidDataUrl_NonImageMimeType() {
+        assertFalse(ImageUrlValidator.isValidImageUrl("data:text/html;base64,PGh0bWw+PC9odG1sPg=="));
     }
 }
