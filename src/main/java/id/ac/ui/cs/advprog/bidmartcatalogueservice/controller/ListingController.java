@@ -292,7 +292,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/publish")
-    public ResponseEntity<?> publish(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> publish(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -310,7 +310,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/auction-created")
-    public ResponseEntity<?> auctionCreated(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> auctionCreated(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -328,7 +328,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/sold")
-    public ResponseEntity<?> markSold(@PathVariable String id, @RequestHeader("X-userid") String sellerId, @RequestBody Map<String, BigDecimal> body) {
+    public ResponseEntity<?> markSold(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId, @RequestBody Map<String, BigDecimal> body) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -347,7 +347,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/unsold")
-    public ResponseEntity<?> markUnsold(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> markUnsold(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -364,4 +364,3 @@ public class ListingController {
         }
     }
 }
-
