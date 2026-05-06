@@ -31,7 +31,7 @@ public class ListingController {
     }
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
+    public ResponseEntity<?> create(@RequestHeader("X-User-Id") String sellerId, @RequestBody Listing listing) {
         try {
             listing.setSellerId(sellerId);
             Listing created = listingService.createListing(listing);
@@ -94,7 +94,7 @@ public class ListingController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable String id, @RequestHeader("X-userid") String sellerId, @RequestBody Listing listing) {
+    public ResponseEntity<?> update(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId, @RequestBody Listing listing) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -115,7 +115,7 @@ public class ListingController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<Void> delete(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing != null) {
             if (!existingListing.getSellerId().equals(sellerId)) {
@@ -128,7 +128,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<?> cancel(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> cancel(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -159,7 +159,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/publish")
-    public ResponseEntity<?> publish(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> publish(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -177,7 +177,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/auction-created")
-    public ResponseEntity<?> auctionCreated(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> auctionCreated(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -195,7 +195,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/sold")
-    public ResponseEntity<?> markSold(@PathVariable String id, @RequestHeader("X-userid") String sellerId, @RequestBody Map<String, BigDecimal> body) {
+    public ResponseEntity<?> markSold(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId, @RequestBody Map<String, BigDecimal> body) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -214,7 +214,7 @@ public class ListingController {
     }
 
     @PostMapping("/{id}/unsold")
-    public ResponseEntity<?> markUnsold(@PathVariable String id, @RequestHeader("X-userid") String sellerId) {
+    public ResponseEntity<?> markUnsold(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -231,4 +231,3 @@ public class ListingController {
         }
     }
 }
-
