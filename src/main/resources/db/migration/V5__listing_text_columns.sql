@@ -1,0 +1,5 @@
+ALTER TABLE listings ALTER COLUMN description TYPE TEXT;
+ALTER TABLE listings ALTER COLUMN image_url TYPE TEXT;
+
+ALTER TABLE items ALTER COLUMN description TYPE TEXT;
+ALTER TABLE items ALTER COLUMN image_url TYPE TEXT;
