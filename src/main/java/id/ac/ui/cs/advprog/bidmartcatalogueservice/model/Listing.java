@@ -24,8 +24,11 @@ public class Listing {
 
     private String sellerId;
     private String title;
+    @Column(columnDefinition = "TEXT")
     private String description;
     private String category; // tetap dipertahankan untuk backward compatibility
+
+    @Column(columnDefinition = "TEXT")
     private String imageUrl;
 
     @ManyToOne(fetch = FetchType.EAGER)
