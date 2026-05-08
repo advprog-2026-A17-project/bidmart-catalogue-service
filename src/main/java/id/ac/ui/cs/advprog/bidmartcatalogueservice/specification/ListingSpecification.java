@@ -20,10 +20,14 @@ public class ListingSpecification {
                 predicates.add(criteriaBuilder.equal(root.get("category"), category));
             }
             if (minPrice != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("currentPrice"), minPrice));
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(
+                    criteriaBuilder.coalesce(root.get("currentPrice"), root.get("startingPrice")), 
+                    minPrice));
             }
             if (maxPrice != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("currentPrice"), maxPrice));
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(
+                    criteriaBuilder.coalesce(root.get("currentPrice"), root.get("startingPrice")), 
+                    maxPrice));
             }
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
