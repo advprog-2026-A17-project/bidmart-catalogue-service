@@ -1,0 +1,2 @@
+ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS condition VARCHAR(50);
