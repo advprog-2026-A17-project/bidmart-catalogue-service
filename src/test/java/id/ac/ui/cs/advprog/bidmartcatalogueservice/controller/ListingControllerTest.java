@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -34,13 +34,13 @@ class ListingControllerTest {
         @Autowired
         private MockMvc mockMvc;
 
-        @MockBean
+        @MockitoBean
         private ListingService listingService;
 
-        @MockBean
+        @MockitoBean
         private AuthInterceptor authInterceptor;
 
-        @MockBean
+        @MockitoBean
         private ListingEventPublisher listingEventPublisher;
 
         @Autowired
@@ -108,7 +108,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(post("/api/v1/catalogue/listings")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(requestBody))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.title").value("Kamera Test"));
@@ -130,7 +130,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(post("/api/v1/catalogue/listings")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(requestBody))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("Invalid image URL format: not-a-url"));
@@ -146,7 +146,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(put("/api/v1/catalogue/listings/123")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(requestBody))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.title").value("Kamera Update"));
@@ -161,7 +161,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(put("/api/v1/catalogue/listings/999")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(requestBody))
                                 .andExpect(status().isNotFound());
         }
@@ -175,7 +175,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(put("/api/v1/catalogue/listings/123")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "wrong-seller")
+                                .header("X-User-Id", "wrong-seller")
                                 .content(requestBody))
                                 .andExpect(status().isForbidden());
         }
@@ -191,7 +191,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(put("/api/v1/catalogue/listings/123")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(requestBody))
                                 .andExpect(status().isConflict())
                                 .andExpect(jsonPath("$.message").value("Cannot update listing with active bids"));
@@ -212,7 +212,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(put("/api/v1/catalogue/listings/123")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(requestBody))
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.message").value("Invalid image URL format: ftp://bad.com"));
@@ -224,7 +224,7 @@ class ListingControllerTest {
                 doNothing().when(listingService).deleteListing("123");
 
                 mockMvc.perform(delete("/api/v1/catalogue/listings/123")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNoContent());
         }
 
@@ -233,7 +233,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("999")).thenReturn(null);
 
                 mockMvc.perform(delete("/api/v1/catalogue/listings/999")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNotFound());
         }
 
@@ -242,7 +242,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
 
                 mockMvc.perform(delete("/api/v1/catalogue/listings/123")
-                                .header("X-userid", "wrong-seller"))
+                                .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
         }
 
@@ -293,7 +293,7 @@ class ListingControllerTest {
                 when(listingService.cancelListing("123")).thenReturn(cancelledListing);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("CANCELLED"));
         }
@@ -305,7 +305,7 @@ class ListingControllerTest {
                                 .thenThrow(new IllegalStateException("Listing has active bids"));
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isConflict())
                                 .andExpect(jsonPath("$.message").value("Listing has active bids"));
         }
@@ -315,7 +315,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
-                                .header("X-userid", "wrong-seller"))
+                                .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
         }
 
@@ -324,7 +324,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("999")).thenReturn(null);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/999/cancel")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNotFound());
         }
 
@@ -391,7 +391,7 @@ class ListingControllerTest {
                 when(listingService.publishListing("123")).thenReturn(publishedListing);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("ACTIVE"));
         }
@@ -401,7 +401,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("999")).thenReturn(null);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/999/publish")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNotFound());
         }
 
@@ -410,7 +410,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
-                                .header("X-userid", "wrong-seller"))
+                                .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
         }
 
@@ -421,7 +421,7 @@ class ListingControllerTest {
                                 .thenThrow(new IllegalStateException("Only DRAFT listings can be published"));
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isConflict())
                                 .andExpect(jsonPath("$.message").value("Only DRAFT listings can be published"));
         }
@@ -437,7 +437,7 @@ class ListingControllerTest {
                 when(listingService.markAuctionCreated("123")).thenReturn(result);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("AUCTION_CREATED"));
         }
@@ -447,7 +447,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("999")).thenReturn(null);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/999/auction-created")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNotFound());
         }
 
@@ -456,7 +456,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
-                                .header("X-userid", "wrong-seller"))
+                                .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
         }
 
@@ -475,7 +475,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/sold")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(body))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("SOLD"))
@@ -490,7 +490,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/999/sold")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "seller-123")
+                                .header("X-User-Id", "seller-123")
                                 .content(body))
                                 .andExpect(status().isNotFound());
         }
@@ -503,7 +503,7 @@ class ListingControllerTest {
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/sold")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-userid", "wrong-seller")
+                                .header("X-User-Id", "wrong-seller")
                                 .content(body))
                                 .andExpect(status().isForbidden());
         }
@@ -519,7 +519,7 @@ class ListingControllerTest {
                 when(listingService.markUnsold("123")).thenReturn(result);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/unsold")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("UNSOLD"));
         }
@@ -529,7 +529,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("999")).thenReturn(null);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/999/unsold")
-                                .header("X-userid", "seller-123"))
+                                .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNotFound());
         }
 
@@ -538,7 +538,7 @@ class ListingControllerTest {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
 
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/unsold")
-                                .header("X-userid", "wrong-seller"))
+                                .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
         }
 }
