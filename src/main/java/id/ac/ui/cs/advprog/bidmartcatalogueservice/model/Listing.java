@@ -26,7 +26,8 @@ public class Listing {
     private String title;
     @Column(columnDefinition = "TEXT")
     private String description;
-    private String category; // tetap dipertahankan untuk backward compatibility
+    private String category;
+    private String condition;
 
     @Column(columnDefinition = "TEXT")
     private String imageUrl;

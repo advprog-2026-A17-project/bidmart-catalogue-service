@@ -161,31 +161,6 @@ class CatalogueAuctionIntegrationTest {
         assertTrue(exception.getMessage().contains("Cannot place bid on listing with status"));
     }
 
-    @Test
-    void testBidPlaced_OnCancelledListing_ThrowsException() {
-        Listing listing = Listing.builder()
-                .sellerId("seller-005")
-                .title("Headphone Wireless")
-                .category("Elektronik")
-                .imageUrl("https://example.com/headphone.jpg")
-                .startingPrice(new BigDecimal("500000"))
-                .currentPrice(new BigDecimal("500000"))
-                .status(ListingStatus.ACTIVE)
-                .endTime(LocalDateTime.now().plusDays(5))
-                .build();
-
-        Listing created = listingService.createListing(listing);
-        Listing cancelled = listingService.cancelListing(created.getId());
-        assertEquals(ListingStatus.CANCELLED, cancelled.getStatus());
-
-        // Bid on CANCELLED listing should be rejected
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> listingService.handleBidPlaced(created.getId(), new BigDecimal("600000"))
-        );
-        assertTrue(exception.getMessage().contains("Cannot place bid on listing with status"));
-    }
-
     // ===== Eventual price update via bid =====
 
     @Test
@@ -262,46 +237,4 @@ class CatalogueAuctionIntegrationTest {
         );
     }
 
-    @Test
-    void testInvalidTransition_CancelFromSold_ThrowsException() {
-        Listing listing = Listing.builder()
-                .sellerId("seller-009")
-                .title("Buku Antik")
-                .category("Koleksi")
-                .imageUrl("https://example.com/buku.jpg")
-                .startingPrice(new BigDecimal("500000"))
-                .currentPrice(new BigDecimal("500000"))
-                .status(ListingStatus.ACTIVE)
-                .endTime(LocalDateTime.now().plusDays(5))
-                .build();
-
-        Listing created = listingService.createListing(listing);
-        listingService.markAuctionCreated(created.getId());
-        listingService.markSold(created.getId(), new BigDecimal("750000"));
-
-        // Cannot cancel a SOLD listing
-        assertThrows(
-                IllegalStateException.class,
-                () -> listingService.cancelListing(created.getId())
-        );
-    }
-
-    @Test
-    void testCancelFromDraft_Success() {
-        Listing listing = Listing.builder()
-                .sellerId("seller-010")
-                .title("Perhiasan Emas")
-                .category("Aksesoris")
-                .imageUrl("https://example.com/emas.jpg")
-                .startingPrice(new BigDecimal("10000000"))
-                .currentPrice(new BigDecimal("10000000"))
-                .endTime(LocalDateTime.now().plusDays(7))
-                .build();
-
-        Listing created = listingService.createListing(listing);
-        assertEquals(ListingStatus.DRAFT, created.getStatus());
-
-        Listing cancelled = listingService.cancelListing(created.getId());
-        assertEquals(ListingStatus.CANCELLED, cancelled.getStatus());
-    }
 }
