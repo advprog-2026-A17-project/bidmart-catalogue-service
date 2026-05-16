@@ -43,8 +43,6 @@ public class Listing {
 
     private LocalDateTime endTime;
 
-    private String condition; 
-
     @Enumerated(EnumType.STRING)
     private ListingStatus status; // DRAFT, ACTIVE, AUCTION_CREATED, SOLD, UNSOLD, CANCELLED
 
