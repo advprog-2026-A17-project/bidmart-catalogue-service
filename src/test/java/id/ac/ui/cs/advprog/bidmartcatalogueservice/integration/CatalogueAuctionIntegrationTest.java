@@ -29,7 +29,15 @@ class CatalogueAuctionIntegrationTest {
     void setUp() {
         listingRepository.deleteAll();
     }
-
+    
+/**
+ * Integration test antara catalogue dan auction lifecycle.
+ * 
+ * Test ini memvalidasi:
+ * 1. Active listing validation — hanya listing ACTIVE yang bisa menerima bid
+ * 2. Eventual price update — price update via bid dan mark sold
+ * 3. Full lifecycle — DRAFT → ACTIVE → AUCTION_CREATED → SOLD/UNSOLD
+ */
 
     @Test
     void testFullLifecycle_DraftToSold() {
