@@ -71,21 +71,8 @@ public class ListingServiceImpl implements ListingService {
             existingListing.setEndTime(listing.getEndTime());
             existingListing.setSellerId(listing.getSellerId());
             existingListing.setCategory(listing.getCategory());
+            existingListing.setCondition(listing.getCondition());
             existingListing.setCategoryEntity(listing.getCategoryEntity());
-            return listingRepository.save(existingListing);
-        }).orElse(null);
-    }
-
-    @Override
-    public Listing cancelListing(String id) {
-        return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.isHasBids()) {
-                throw new IllegalStateException("Listing has active bids");
-            }
-            if (existingListing.getStatus() != ListingStatus.DRAFT && existingListing.getStatus() != ListingStatus.ACTIVE) {
-                throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.CANCELLED);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -114,6 +101,20 @@ public class ListingServiceImpl implements ListingService {
                 throw new IllegalStateException("Only DRAFT listings can be published, current status: " + existingListing.getStatus());
             }
             existingListing.setStatus(ListingStatus.ACTIVE);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing deactivateListing(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.isHasBids()) {
+                throw new IllegalStateException("Cannot deactivate listing with active bids");
+            }
+            if (existingListing.getStatus() != ListingStatus.ACTIVE) {
+                throw new IllegalStateException("Only ACTIVE listings can be deactivated, current status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.DRAFT);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
