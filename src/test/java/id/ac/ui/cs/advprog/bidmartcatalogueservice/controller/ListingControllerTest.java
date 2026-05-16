@@ -280,54 +280,6 @@ class ListingControllerTest {
     }
 
     @Test
-    void testCancelListingEndpoint_WhenNoBids() throws Exception {
-        when(listingService.getListingById("123")).thenReturn(sampleListing);
-        Listing cancelledListing = Listing.builder()
-                .id("123")
-                .sellerId("seller-123")
-                .title("Kamera Test")
-                .status(ListingStatus.CANCELLED)
-                .hasBids(false)
-                .build();
-        when(listingService.cancelListing("123")).thenReturn(cancelledListing);
-
-        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
-                        .header("X-User-Id", "seller-123"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
-    }
-
-    @Test
-    void testCancelListingEndpoint_WhenListingHasBids() throws Exception {
-        when(listingService.getListingById("123")).thenReturn(sampleListing);
-        when(listingService.cancelListing("123"))
-                .thenThrow(new IllegalStateException("Listing has active bids"));
-
-        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
-                        .header("X-User-Id", "seller-123"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Listing has active bids"));
-    }
-
-    @Test
-    void testCancelListingEndpoint_Forbidden() throws Exception {
-        when(listingService.getListingById("123")).thenReturn(sampleListing);
-
-        mockMvc.perform(post("/api/v1/catalogue/listings/123/cancel")
-                        .header("X-User-Id", "wrong-seller"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void testCancelListingEndpoint_NotFound() throws Exception {
-        when(listingService.getListingById("999")).thenReturn(null);
-
-        mockMvc.perform(post("/api/v1/catalogue/listings/999/cancel")
-                        .header("X-User-Id", "seller-123"))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
     void testBidPlacedEndpoint_Success() throws Exception {
         Listing updatedListing = Listing.builder()
                 .id("123")
@@ -424,6 +376,53 @@ class ListingControllerTest {
                         .header("X-User-Id", "seller-123"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Only DRAFT listings can be published"));
+    }
+
+    @Test
+    void testDeactivateEndpoint_Success() throws Exception {
+        Listing deactivatedListing = Listing.builder()
+                .id("123")
+                .sellerId("seller-123")
+                .title("Kamera Test")
+                .status(ListingStatus.DRAFT)
+                .build();
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.deactivateListing("123")).thenReturn(deactivatedListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/deactivate")
+                        .header("X-User-Id", "seller-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+    }
+
+    @Test
+    void testDeactivateEndpoint_NotFound() throws Exception {
+        when(listingService.getListingById("999")).thenReturn(null);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/999/deactivate")
+                        .header("X-User-Id", "seller-123"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testDeactivateEndpoint_Forbidden() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/deactivate")
+                        .header("X-User-Id", "wrong-seller"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testDeactivateEndpoint_Conflict() throws Exception {
+        when(listingService.getListingById("123")).thenReturn(sampleListing);
+        when(listingService.deactivateListing("123"))
+                .thenThrow(new IllegalStateException("Cannot deactivate listing with active bids"));
+
+        mockMvc.perform(post("/api/v1/catalogue/listings/123/deactivate")
+                        .header("X-User-Id", "seller-123"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Cannot deactivate listing with active bids"));
     }
 
     @Test

@@ -127,24 +127,6 @@ public class ListingController {
         return ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/{id}/cancel")
-    public ResponseEntity<?> cancel(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
-        Listing existingListing = listingService.getListingById(id);
-        if (existingListing == null) {
-            return ResponseEntity.notFound().build();
-        }
-        if (!existingListing.getSellerId().equals(sellerId)) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
-        }
-
-        try {
-            Listing cancelledListing = listingService.cancelListing(id);
-            return ResponseEntity.ok(cancelledListing);
-        } catch (IllegalStateException exception) {
-            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
-        }
-    }
-
     @PostMapping("/{id}/bid")
     public ResponseEntity<?> bidPlaced(@PathVariable String id, @RequestBody BidPlacedEvent event) {
         try {
@@ -171,6 +153,24 @@ public class ListingController {
         try {
             Listing published = listingService.publishListing(id);
             return ResponseEntity.ok(published);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/deactivate")
+    public ResponseEntity<?> deactivate(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!existingListing.getSellerId().equals(sellerId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            Listing deactivated = listingService.deactivateListing(id);
+            return ResponseEntity.ok(deactivated);
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
