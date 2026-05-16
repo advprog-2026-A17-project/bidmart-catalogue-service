@@ -17,8 +17,6 @@ public interface ListingService {
     Listing cancelListing(String id);
     void deleteListing(String id);
     Listing handleBidPlaced(String listingId, BigDecimal newPrice);
-
-    // State transition methods
     Listing publishListing(String id);
     Listing markAuctionCreated(String id);
     Listing markSold(String id, BigDecimal finalPrice);
