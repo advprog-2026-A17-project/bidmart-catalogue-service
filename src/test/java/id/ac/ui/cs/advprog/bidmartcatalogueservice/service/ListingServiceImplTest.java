@@ -381,6 +381,23 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_WithValidQueryImageUrl() {
+        String imageUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0znL8ai0yMU1d9cari9XBqIPn0ApeW8uuRGdU0Q3HErXpvhNw_FStz-6AwmTxf-6iMO5apPpgA99ih7uyYBFG5E30qhu9uFk8Z1ZJRHI&s=10";
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .imageUrl(imageUrl)
+                .startingPrice(new BigDecimal("5000"))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(listing);
+
+        assertNotNull(created);
+        assertEquals(imageUrl, created.getImageUrl());
+    }
+
+    @Test
     void testCreateListing_WithInvalidImageUrl() {
         Listing listing = Listing.builder()
                 .title("Camera")
