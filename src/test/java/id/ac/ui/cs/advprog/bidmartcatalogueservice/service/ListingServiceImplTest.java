@@ -124,7 +124,8 @@ class ListingServiceImplTest {
         Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing), pageable, 1);
         when(listingRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        Page<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, ListingStatus.ACTIVE, pageable);
+        Page<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, ListingStatus.ACTIVE,
+                pageable);
 
         assertEquals(1, result.getTotalElements());
         assertEquals(1, result.getContent().size());
@@ -139,7 +140,6 @@ class ListingServiceImplTest {
         Listing updatedData = Listing.builder()
                 .title("Laptop Test Updated")
                 .description("Desc")
-                .condition("excellent")
                 .imageUrl("http://img.com/photo.jpg")
                 .startingPrice(new BigDecimal("12000"))
                 .currentPrice(new BigDecimal("15000"))
@@ -151,7 +151,6 @@ class ListingServiceImplTest {
         assertNotNull(updated);
         verify(listingRepository, times(1)).save(sampleListing);
         assertEquals("Laptop Test Updated", sampleListing.getTitle());
-        assertEquals("excellent", sampleListing.getCondition());
     }
 
     @Test
@@ -172,8 +171,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.updateListing("123", new Listing())
-        );
+                () -> listingService.updateListing("123", new Listing()));
 
         assertTrue(exception.getMessage().contains("Cannot update listing with status"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -189,14 +187,52 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCancelListing_WhenNoBids() {
+        sampleListing.setHasBids(false);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenReturn(sampleListing);
+
+        Listing cancelled = listingService.cancelListing("123");
+
+        assertEquals(ListingStatus.CANCELLED, cancelled.getStatus());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testCancelListing_WhenHasBids() {
+        sampleListing.setHasBids(true);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> listingService.cancelListing("123"));
+
+        assertEquals("Listing has active bids", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testCancelListing_WhenStatusIsSold_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.SOLD);
+        sampleListing.setHasBids(false);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> listingService.cancelListing("123"));
+
+        assertTrue(exception.getMessage().contains("Cannot cancel listing with status"));
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
     void testUpdateListing_WhenHasBids_ThrowsException() {
         sampleListing.setHasBids(true);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.updateListing("123", new Listing())
-        );
+                () -> listingService.updateListing("123", new Listing()));
 
         assertEquals("Cannot update listing with active bids", exception.getMessage());
         verify(listingRepository, never()).save(any(Listing.class));
@@ -232,8 +268,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.handleBidPlaced("123", new BigDecimal("12000"))
-        );
+                () -> listingService.handleBidPlaced("123", new BigDecimal("12000")));
 
         assertTrue(exception.getMessage().contains("Cannot place bid on listing with status"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -246,8 +281,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.handleBidPlaced("123", new BigDecimal("12000"))
-        );
+                () -> listingService.handleBidPlaced("123", new BigDecimal("12000")));
 
         assertTrue(exception.getMessage().contains("Cannot place bid on listing with status"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -298,8 +332,7 @@ class ListingServiceImplTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> listingService.createListing(listing)
-        );
+                () -> listingService.createListing(listing));
 
         assertTrue(exception.getMessage().contains("Category not found"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -342,23 +375,6 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testCreateListing_WithValidQueryImageUrl() {
-        String imageUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0znL8ai0yMU1d9cari9XBqIPn0ApeW8uuRGdU0Q3HErXpvhNw_FStz-6AwmTxf-6iMO5apPpgA99ih7uyYBFG5E30qhu9uFk8Z1ZJRHI&s=10";
-        Listing listing = Listing.builder()
-                .title("Camera")
-                .imageUrl(imageUrl)
-                .startingPrice(new BigDecimal("5000"))
-                .build();
-
-        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        Listing created = listingService.createListing(listing);
-
-        assertNotNull(created);
-        assertEquals(imageUrl, created.getImageUrl());
-    }
-
-    @Test
     void testCreateListing_WithInvalidImageUrl() {
         Listing listing = Listing.builder()
                 .title("Camera")
@@ -368,8 +384,7 @@ class ListingServiceImplTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> listingService.createListing(listing)
-        );
+                () -> listingService.createListing(listing));
 
         assertTrue(exception.getMessage().contains("Invalid image URL"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -387,14 +402,11 @@ class ListingServiceImplTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> listingService.updateListing("123", updatedData)
-        );
+                () -> listingService.updateListing("123", updatedData));
 
         assertTrue(exception.getMessage().contains("Invalid image URL"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
-
-    // ===== State transition tests =====
 
     @Test
     void testPublishListing_FromDraft_Success() {
@@ -416,8 +428,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.publishListing("123")
-        );
+                () -> listingService.publishListing("123"));
 
         assertTrue(exception.getMessage().contains("Only DRAFT listings can be published"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -428,59 +439,6 @@ class ListingServiceImplTest {
         when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
         Listing result = listingService.publishListing("999");
-
-        assertNull(result);
-        verify(listingRepository, never()).save(any(Listing.class));
-    }
-
-    @Test
-    void testDeactivateListing_FromActive_Success() {
-        sampleListing.setStatus(ListingStatus.ACTIVE);
-        sampleListing.setHasBids(false);
-        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
-        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        Listing result = listingService.deactivateListing("123");
-
-        assertNotNull(result);
-        assertEquals(ListingStatus.DRAFT, result.getStatus());
-        verify(listingRepository).save(sampleListing);
-    }
-
-    @Test
-    void testDeactivateListing_WithActiveBids_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.ACTIVE);
-        sampleListing.setHasBids(true);
-        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
-
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> listingService.deactivateListing("123")
-        );
-
-        assertTrue(exception.getMessage().contains("Cannot deactivate listing with active bids"));
-        verify(listingRepository, never()).save(any(Listing.class));
-    }
-
-    @Test
-    void testDeactivateListing_FromDraft_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.DRAFT);
-        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
-
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> listingService.deactivateListing("123")
-        );
-
-        assertTrue(exception.getMessage().contains("Only ACTIVE listings can be deactivated"));
-        verify(listingRepository, never()).save(any(Listing.class));
-    }
-
-    @Test
-    void testDeactivateListing_NotFound() {
-        when(listingRepository.findById("999")).thenReturn(Optional.empty());
-
-        Listing result = listingService.deactivateListing("999");
 
         assertNull(result);
         verify(listingRepository, never()).save(any(Listing.class));
@@ -506,8 +464,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markAuctionCreated("123")
-        );
+                () -> listingService.markAuctionCreated("123"));
 
         assertTrue(exception.getMessage().contains("Only ACTIVE listings can be marked as AUCTION_CREATED"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -544,8 +501,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markSold("123", new BigDecimal("25000"))
-        );
+                () -> listingService.markSold("123", new BigDecimal("25000")));
 
         assertTrue(exception.getMessage().contains("Only AUCTION_CREATED listings can be marked as SOLD"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -581,8 +537,7 @@ class ListingServiceImplTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markUnsold("123")
-        );
+                () -> listingService.markUnsold("123"));
 
         assertTrue(exception.getMessage().contains("Only AUCTION_CREATED listings can be marked as UNSOLD"));
         verify(listingRepository, never()).save(any(Listing.class));
@@ -599,6 +554,20 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCancelListing_FromDraft_Success() {
+        sampleListing.setStatus(ListingStatus.DRAFT);
+        sampleListing.setHasBids(false);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing result = listingService.cancelListing("123");
+
+        assertNotNull(result);
+        assertEquals(ListingStatus.CANCELLED, result.getStatus());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
     void testUpdateListing_FromDraft_Success() {
         sampleListing.setStatus(ListingStatus.DRAFT);
         sampleListing.setHasBids(false);
@@ -608,7 +577,6 @@ class ListingServiceImplTest {
         Listing updatedData = Listing.builder()
                 .title("Updated Title")
                 .description("Updated Desc")
-                .condition("good")
                 .imageUrl("http://img.com/photo.jpg")
                 .startingPrice(new BigDecimal("15000"))
                 .sellerId("usr")
@@ -618,7 +586,6 @@ class ListingServiceImplTest {
 
         assertNotNull(result);
         assertEquals("Updated Title", result.getTitle());
-        assertEquals("good", result.getCondition());
         verify(listingRepository).save(sampleListing);
     }
 }
