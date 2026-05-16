@@ -230,4 +230,21 @@ public class ListingController {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
     }
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancel(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!existingListing.getSellerId().equals(sellerId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            Listing result = listingService.cancelListing(id);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
+    }
 }

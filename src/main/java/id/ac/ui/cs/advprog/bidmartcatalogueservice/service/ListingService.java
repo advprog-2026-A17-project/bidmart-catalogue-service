@@ -21,4 +21,5 @@ public interface ListingService {
     Listing markAuctionCreated(String id);
     Listing markSold(String id, BigDecimal finalPrice);
     Listing markUnsold(String id);
+    Listing cancelListing(String id);
 }
