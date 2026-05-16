@@ -153,6 +153,22 @@ public class ListingServiceImpl implements ListingService {
         }).orElse(null);
     }
 
+    @Override
+    public Listing cancelListing(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.isHasBids()) {
+                throw new IllegalStateException("Listing has active bids");
+            }
+            if (existingListing.getStatus() == ListingStatus.SOLD || 
+                existingListing.getStatus() == ListingStatus.UNSOLD || 
+                existingListing.getStatus() == ListingStatus.CANCELLED) {
+                throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.CANCELLED);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
     private void resolveCategory(Listing listing) {
         if (listing.getCategoryEntity() != null && listing.getCategoryEntity().getId() != null) {
             Category category = categoryRepository.findById(listing.getCategoryEntity().getId())
