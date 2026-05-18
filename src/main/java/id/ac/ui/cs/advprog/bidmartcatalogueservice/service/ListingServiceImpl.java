@@ -13,6 +13,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -96,12 +97,23 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public Listing handleBidPlaced(String listingId, BigDecimal newPrice) {
+        return synchronizeBidState(listingId, newPrice, null, null);
+    }
+
+    @Override
+    public Listing synchronizeBidState(String listingId, BigDecimal newPrice, ListingStatus status, LocalDateTime endTime) {
         return listingRepository.findById(listingId).map(existingListing -> {
             if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
                 throw new IllegalStateException("Cannot place bid on listing with status: " + existingListing.getStatus());
             }
             existingListing.setHasBids(true);
             existingListing.setCurrentPrice(newPrice);
+            if (status == ListingStatus.ACTIVE || status == ListingStatus.EXTENDED) {
+                existingListing.setStatus(status);
+            }
+            if (endTime != null) {
+                existingListing.setEndTime(endTime);
+            }
             return listingRepository.save(existingListing);
         }).orElse(null);
     }

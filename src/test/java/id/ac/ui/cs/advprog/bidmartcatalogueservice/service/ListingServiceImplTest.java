@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -421,6 +422,7 @@ class ListingServiceImplTest {
     @Test
     void testPublishListing_FromDraft_Success() {
         sampleListing.setStatus(ListingStatus.DRAFT);
+        sampleListing.setEndTime(LocalDateTime.now().plusDays(1));
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
