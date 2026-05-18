@@ -18,8 +18,9 @@ public interface ListingService {
     Listing handleBidPlaced(String listingId, BigDecimal newPrice);
     Listing publishListing(String id);
     Listing deactivateListing(String id);
-    Listing markAuctionCreated(String id);
-    Listing markSold(String id, BigDecimal finalPrice);
+    Listing markExtended(String id);
+    Listing markClosed(String id);
+    Listing markWon(String id, BigDecimal finalPrice);
     Listing markUnsold(String id);
     Listing cancelListing(String id);
 }
