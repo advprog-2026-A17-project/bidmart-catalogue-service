@@ -58,7 +58,7 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.isHasBids()) {
                 throw new IllegalStateException("Cannot update listing with active bids");
             }
-            if (existingListing.getStatus() != ListingStatus.DRAFT && existingListing.getStatus() != ListingStatus.ACTIVE) {
+            if (existingListing.getStatus() != ListingStatus.DRAFT) {
                 throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
             validateImageUrl(listing.getImageUrl());
@@ -85,7 +85,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing handleBidPlaced(String listingId, BigDecimal newPrice) {
         return listingRepository.findById(listingId).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
+            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
                 throw new IllegalStateException("Cannot place bid on listing with status: " + existingListing.getStatus());
             }
             existingListing.setHasBids(true);
@@ -120,23 +120,36 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    public Listing markAuctionCreated(String id) {
+    public Listing markExtended(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE) {
-                throw new IllegalStateException("Only ACTIVE listings can be marked as AUCTION_CREATED, current status: " + existingListing.getStatus());
+            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
+                throw new IllegalStateException("Only ACTIVE or EXTENDED listings can be marked as EXTENDED, current status: " + existingListing.getStatus());
             }
-            existingListing.setStatus(ListingStatus.AUCTION_CREATED);
+            existingListing.setStatus(ListingStatus.EXTENDED);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
 
     @Override
-    public Listing markSold(String id, BigDecimal finalPrice) {
+    public Listing markClosed(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
-                throw new IllegalStateException("Only AUCTION_CREATED listings can be marked as SOLD, current status: " + existingListing.getStatus());
+            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
+                throw new IllegalStateException("Only ACTIVE or EXTENDED listings can be marked as CLOSED, current status: " + existingListing.getStatus());
             }
-            existingListing.setStatus(ListingStatus.SOLD);
+            existingListing.setStatus(ListingStatus.CLOSED);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
+    public Listing markWon(String id, BigDecimal finalPrice) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.getStatus() != ListingStatus.ACTIVE
+                    && existingListing.getStatus() != ListingStatus.EXTENDED
+                    && existingListing.getStatus() != ListingStatus.CLOSED) {
+                throw new IllegalStateException("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as WON, current status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.WON);
             existingListing.setCurrentPrice(finalPrice);
             return listingRepository.save(existingListing);
         }).orElse(null);
@@ -145,8 +158,10 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing markUnsold(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
-                throw new IllegalStateException("Only AUCTION_CREATED listings can be marked as UNSOLD, current status: " + existingListing.getStatus());
+            if (existingListing.getStatus() != ListingStatus.ACTIVE
+                    && existingListing.getStatus() != ListingStatus.EXTENDED
+                    && existingListing.getStatus() != ListingStatus.CLOSED) {
+                throw new IllegalStateException("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as UNSOLD, current status: " + existingListing.getStatus());
             }
             existingListing.setStatus(ListingStatus.UNSOLD);
             return listingRepository.save(existingListing);
@@ -159,8 +174,9 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.isHasBids()) {
                 throw new IllegalStateException("Listing has active bids");
             }
-            if (existingListing.getStatus() == ListingStatus.SOLD || 
+            if (existingListing.getStatus() == ListingStatus.WON ||
                 existingListing.getStatus() == ListingStatus.UNSOLD || 
+                existingListing.getStatus() == ListingStatus.CLOSED ||
                 existingListing.getStatus() == ListingStatus.CANCELLED) {
                 throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
             }
