@@ -427,49 +427,106 @@ class ListingControllerTest {
         }
 
         @Test
-        void testAuctionCreatedEndpoint_Success() throws Exception {
+        void testExtendEndpoint_Success() throws Exception {
                 Listing result = Listing.builder()
                                 .id("123")
                                 .sellerId("seller-123")
-                                .status(ListingStatus.AUCTION_CREATED)
+                                .status(ListingStatus.EXTENDED)
                                 .build();
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
-                when(listingService.markAuctionCreated("123")).thenReturn(result);
+                when(listingService.markExtended("123")).thenReturn(result);
 
-                mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/extend")
                                 .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.status").value("AUCTION_CREATED"));
+                                .andExpect(jsonPath("$.status").value("EXTENDED"));
         }
 
         @Test
-        void testAuctionCreatedEndpoint_NotFound() throws Exception {
+        void testExtendEndpoint_NotFound() throws Exception {
                 when(listingService.getListingById("999")).thenReturn(null);
 
-                mockMvc.perform(post("/api/v1/catalogue/listings/999/auction-created")
+                mockMvc.perform(post("/api/v1/catalogue/listings/999/extend")
                                 .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isNotFound());
         }
 
         @Test
-        void testAuctionCreatedEndpoint_Forbidden() throws Exception {
+        void testExtendEndpoint_Forbidden() throws Exception {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
 
-                mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/extend")
                                 .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
         }
 
         @Test
-        void testSoldEndpoint_Success() throws Exception {
+        void testAuctionCreatedLegacyEndpoint_Success() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isOk());
+        }
+
+        @Test
+        void testWonEndpoint_Success() throws Exception {
                 Listing result = Listing.builder()
                                 .id("123")
                                 .sellerId("seller-123")
-                                .status(ListingStatus.SOLD)
+                                .status(ListingStatus.WON)
                                 .currentPrice(new BigDecimal("750000"))
                                 .build();
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
-                when(listingService.markSold(eq("123"), any(BigDecimal.class))).thenReturn(result);
+                when(listingService.markWon(eq("123"), any(BigDecimal.class))).thenReturn(result);
+
+                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/won")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-User-Id", "seller-123")
+                                .content(body))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("WON"))
+                                .andExpect(jsonPath("$.currentPrice").value(750000));
+        }
+
+        @Test
+        void testWonEndpoint_NotFound() throws Exception {
+                when(listingService.getListingById("999")).thenReturn(null);
+
+                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/999/won")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-User-Id", "seller-123")
+                                .content(body))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void testWonEndpoint_Forbidden() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/won")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-User-Id", "wrong-seller")
+                                .content(body))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void testSoldLegacyEndpoint_Success() throws Exception {
+                Listing result = Listing.builder()
+                                .id("123")
+                                .sellerId("seller-123")
+                                .status(ListingStatus.WON)
+                                .currentPrice(new BigDecimal("750000"))
+                                .build();
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.markWon(eq("123"), any(BigDecimal.class))).thenReturn(result);
 
                 String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
 
@@ -478,34 +535,7 @@ class ListingControllerTest {
                                 .header("X-User-Id", "seller-123")
                                 .content(body))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.status").value("SOLD"))
-                                .andExpect(jsonPath("$.currentPrice").value(750000));
-        }
-
-        @Test
-        void testSoldEndpoint_NotFound() throws Exception {
-                when(listingService.getListingById("999")).thenReturn(null);
-
-                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
-
-                mockMvc.perform(post("/api/v1/catalogue/listings/999/sold")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-User-Id", "seller-123")
-                                .content(body))
-                                .andExpect(status().isNotFound());
-        }
-
-        @Test
-        void testSoldEndpoint_Forbidden() throws Exception {
-                when(listingService.getListingById("123")).thenReturn(sampleListing);
-
-                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
-
-                mockMvc.perform(post("/api/v1/catalogue/listings/123/sold")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-User-Id", "wrong-seller")
-                                .content(body))
-                                .andExpect(status().isForbidden());
+                                .andExpect(jsonPath("$.status").value("WON"));
         }
 
         @Test

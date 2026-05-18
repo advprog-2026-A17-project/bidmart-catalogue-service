@@ -56,11 +56,14 @@ class ListingTest {
         listing.setStatus(ListingStatus.ACTIVE);
         assertEquals(ListingStatus.ACTIVE, listing.getStatus());
 
-        listing.setStatus(ListingStatus.AUCTION_CREATED);
-        assertEquals(ListingStatus.AUCTION_CREATED, listing.getStatus());
+        listing.setStatus(ListingStatus.EXTENDED);
+        assertEquals(ListingStatus.EXTENDED, listing.getStatus());
 
-        listing.setStatus(ListingStatus.SOLD);
-        assertEquals(ListingStatus.SOLD, listing.getStatus());
+        listing.setStatus(ListingStatus.CLOSED);
+        assertEquals(ListingStatus.CLOSED, listing.getStatus());
+
+        listing.setStatus(ListingStatus.WON);
+        assertEquals(ListingStatus.WON, listing.getStatus());
 
         listing.setStatus(ListingStatus.UNSOLD);
         assertEquals(ListingStatus.UNSOLD, listing.getStatus());
@@ -68,4 +71,4 @@ class ListingTest {
         listing.setStatus(ListingStatus.CANCELLED);
         assertEquals(ListingStatus.CANCELLED, listing.getStatus());
     }
-}
+}

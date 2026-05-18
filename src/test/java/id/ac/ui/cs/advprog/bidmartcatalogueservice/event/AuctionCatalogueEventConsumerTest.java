@@ -45,7 +45,7 @@ class AuctionCatalogueEventConsumerTest {
     }
 
     @Test
-    void auctionEndedWithWinnerMarksListingSold() throws Exception {
+    void auctionEndedWithWinnerMarksListingWon() throws Exception {
         consumer.consume("""
                 {
                   "eventId": "evt-ended-1",
@@ -60,7 +60,7 @@ class AuctionCatalogueEventConsumerTest {
                 }
                 """);
 
-        verify(listingService).markSold("listing-1", new BigDecimal("14000"));
+        verify(listingService).markWon("listing-1", new BigDecimal("14000"));
     }
 
     @Test
