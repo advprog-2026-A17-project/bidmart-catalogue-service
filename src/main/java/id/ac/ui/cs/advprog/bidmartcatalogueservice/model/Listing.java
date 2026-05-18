@@ -40,7 +40,9 @@ public class Listing {
     private BigDecimal startingPrice;
     private BigDecimal reservePrice;
     private BigDecimal currentPrice; //  update harga dari modul lelang
+    private BigDecimal minimumIncrement;
 
+    private LocalDateTime startTime;
     private LocalDateTime endTime;
 
     @Enumerated(EnumType.STRING)
