@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ListingService {
@@ -16,6 +17,7 @@ public interface ListingService {
     Listing updateListing(String id, Listing listing);
     void deleteListing(String id);
     Listing handleBidPlaced(String listingId, BigDecimal newPrice);
+    Listing synchronizeBidState(String listingId, BigDecimal newPrice, ListingStatus status, LocalDateTime endTime);
     Listing publishListing(String id);
     Listing deactivateListing(String id);
     Listing markExtended(String id);
