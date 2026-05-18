@@ -33,6 +33,15 @@ public class ListingServiceImpl implements ListingService {
         if (listing.getStatus() == null) {
             listing.setStatus(ListingStatus.DRAFT);
         }
+        if (listing.getMinimumIncrement() == null) {
+            listing.setMinimumIncrement(BigDecimal.ONE);
+        }
+        if (listing.getCurrentPrice() == null && listing.getStartingPrice() != null) {
+            listing.setCurrentPrice(listing.getStartingPrice());
+        }
+        if (listing.getReservePrice() == null && listing.getStartingPrice() != null) {
+            listing.setReservePrice(listing.getStartingPrice());
+        }
         return listingRepository.save(listing);
     }
 
@@ -67,7 +76,10 @@ public class ListingServiceImpl implements ListingService {
             existingListing.setDescription(listing.getDescription());
             existingListing.setImageUrl(listing.getImageUrl());
             existingListing.setStartingPrice(listing.getStartingPrice());
+            existingListing.setReservePrice(listing.getReservePrice());
+            existingListing.setMinimumIncrement(listing.getMinimumIncrement());
             existingListing.setCurrentPrice(listing.getCurrentPrice());
+            existingListing.setStartTime(listing.getStartTime());
             existingListing.setEndTime(listing.getEndTime());
             existingListing.setSellerId(listing.getSellerId());
             existingListing.setCategory(listing.getCategory());
@@ -99,6 +111,24 @@ public class ListingServiceImpl implements ListingService {
         return listingRepository.findById(id).map(existingListing -> {
             if (existingListing.getStatus() != ListingStatus.DRAFT) {
                 throw new IllegalStateException("Only DRAFT listings can be published, current status: " + existingListing.getStatus());
+            }
+            if (existingListing.getEndTime() == null) {
+                throw new IllegalStateException("Auction end time is required before publishing");
+            }
+            if (existingListing.getStartingPrice() == null) {
+                throw new IllegalStateException("Starting price is required before publishing");
+            }
+            if (existingListing.getReservePrice() == null) {
+                existingListing.setReservePrice(existingListing.getStartingPrice());
+            }
+            if (existingListing.getMinimumIncrement() == null) {
+                existingListing.setMinimumIncrement(BigDecimal.ONE);
+            }
+            if (existingListing.getStartTime() == null) {
+                existingListing.setStartTime(java.time.LocalDateTime.now());
+            }
+            if (existingListing.getCurrentPrice() == null) {
+                existingListing.setCurrentPrice(existingListing.getStartingPrice());
             }
             existingListing.setStatus(ListingStatus.ACTIVE);
             return listingRepository.save(existingListing);
