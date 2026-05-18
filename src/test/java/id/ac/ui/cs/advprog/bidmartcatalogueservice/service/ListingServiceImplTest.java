@@ -47,7 +47,7 @@ class ListingServiceImplTest {
                 .title("Laptop Test")
                 .category("Elektronik")
                 .startingPrice(new BigDecimal("10000"))
-                .status(ListingStatus.ACTIVE)
+                .status(ListingStatus.DRAFT)
                 .build();
     }
 
@@ -164,8 +164,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testUpdateListing_WhenStatusIsSold_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.SOLD);
+    void testUpdateListing_WhenStatusIsWon_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.WON);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
@@ -213,8 +213,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testCancelListing_WhenStatusIsSold_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.SOLD);
+    void testCancelListing_WhenStatusIsWon_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.WON);
         sampleListing.setHasBids(false);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
@@ -243,6 +243,7 @@ class ListingServiceImplTest {
 
     @Test
     void testHandleBidPlaced_Success() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -293,8 +294,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testHandleBidPlaced_WhenStatusIsAuctionCreated_Success() {
-        sampleListing.setStatus(ListingStatus.AUCTION_CREATED);
+    void testHandleBidPlaced_WhenStatusIsExtended_Success() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -455,83 +456,83 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testMarkAuctionCreated_FromActive_Success() {
+    void testMarkExtended_FromActive_Success() {
         sampleListing.setStatus(ListingStatus.ACTIVE);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Listing result = listingService.markAuctionCreated("123");
+        Listing result = listingService.markExtended("123");
 
         assertNotNull(result);
-        assertEquals(ListingStatus.AUCTION_CREATED, result.getStatus());
+        assertEquals(ListingStatus.EXTENDED, result.getStatus());
         verify(listingRepository).save(sampleListing);
     }
 
     @Test
-    void testMarkAuctionCreated_FromDraft_ThrowsException() {
+    void testMarkExtended_FromDraft_ThrowsException() {
         sampleListing.setStatus(ListingStatus.DRAFT);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markAuctionCreated("123")
+                () -> listingService.markExtended("123")
         );
 
-        assertTrue(exception.getMessage().contains("Only ACTIVE listings can be marked as AUCTION_CREATED"));
+        assertTrue(exception.getMessage().contains("Only ACTIVE or EXTENDED listings can be marked as EXTENDED"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkAuctionCreated_NotFound() {
+    void testMarkExtended_NotFound() {
         when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
-        Listing result = listingService.markAuctionCreated("999");
+        Listing result = listingService.markExtended("999");
 
         assertNull(result);
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkSold_FromAuctionCreated_Success() {
-        sampleListing.setStatus(ListingStatus.AUCTION_CREATED);
+    void testMarkWon_FromExtended_Success() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Listing result = listingService.markSold("123", new BigDecimal("25000"));
+        Listing result = listingService.markWon("123", new BigDecimal("25000"));
 
         assertNotNull(result);
-        assertEquals(ListingStatus.SOLD, result.getStatus());
+        assertEquals(ListingStatus.WON, result.getStatus());
         assertEquals(new BigDecimal("25000"), result.getCurrentPrice());
         verify(listingRepository).save(sampleListing);
     }
 
     @Test
-    void testMarkSold_FromActive_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.ACTIVE);
+    void testMarkWon_FromCancelled_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.CANCELLED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markSold("123", new BigDecimal("25000"))
+                () -> listingService.markWon("123", new BigDecimal("25000"))
         );
 
-        assertTrue(exception.getMessage().contains("Only AUCTION_CREATED listings can be marked as SOLD"));
+        assertTrue(exception.getMessage().contains("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as WON"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkSold_NotFound() {
+    void testMarkWon_NotFound() {
         when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
-        Listing result = listingService.markSold("999", new BigDecimal("25000"));
+        Listing result = listingService.markWon("999", new BigDecimal("25000"));
 
         assertNull(result);
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkUnsold_FromAuctionCreated_Success() {
-        sampleListing.setStatus(ListingStatus.AUCTION_CREATED);
+    void testMarkUnsold_FromExtended_Success() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -543,8 +544,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testMarkUnsold_FromActive_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.ACTIVE);
+    void testMarkUnsold_FromCancelled_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.CANCELLED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
@@ -552,7 +553,7 @@ class ListingServiceImplTest {
                 () -> listingService.markUnsold("123")
         );
 
-        assertTrue(exception.getMessage().contains("Only AUCTION_CREATED listings can be marked as UNSOLD"));
+        assertTrue(exception.getMessage().contains("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as UNSOLD"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 

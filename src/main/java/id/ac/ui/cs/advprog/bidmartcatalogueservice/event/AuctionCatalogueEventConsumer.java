@@ -72,7 +72,7 @@ public class AuctionCatalogueEventConsumer {
             listingService.markUnsold(listingId);
             return;
         }
-        listingService.markSold(listingId, decimal(payload.path("finalPrice")));
+        listingService.markWon(listingId, decimal(payload.path("finalPrice")));
     }
 
     private BigDecimal decimal(JsonNode node) {
