@@ -176,8 +176,8 @@ public class ListingController {
         }
     }
 
-    @PostMapping("/{id}/auction-created")
-    public ResponseEntity<?> auctionCreated(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
+    @PostMapping("/{id}/extend")
+    public ResponseEntity<?> markExtended(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -187,15 +187,48 @@ public class ListingController {
         }
 
         try {
-            Listing result = listingService.markAuctionCreated(id);
+            Listing result = listingService.markExtended(id);
             return ResponseEntity.ok(result);
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
     }
 
-    @PostMapping("/{id}/sold")
-    public ResponseEntity<?> markSold(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId, @RequestBody Map<String, BigDecimal> body) {
+    @PostMapping("/{id}/auction-created")
+    public ResponseEntity<?> markAuctionCreatedLegacy(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!existingListing.getSellerId().equals(sellerId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
+            return ResponseEntity.status(409).body(Map.of("message", "Cannot mark auction-created with status: " + existingListing.getStatus()));
+        }
+        return ResponseEntity.ok(existingListing);
+    }
+
+    @PostMapping("/{id}/close")
+    public ResponseEntity<?> markClosed(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!existingListing.getSellerId().equals(sellerId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            Listing result = listingService.markClosed(id);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/won")
+    public ResponseEntity<?> markWon(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId, @RequestBody Map<String, BigDecimal> body) {
         Listing existingListing = listingService.getListingById(id);
         if (existingListing == null) {
             return ResponseEntity.notFound().build();
@@ -206,11 +239,16 @@ public class ListingController {
 
         try {
             BigDecimal finalPrice = body.get("finalPrice");
-            Listing result = listingService.markSold(id, finalPrice);
+            Listing result = listingService.markWon(id, finalPrice);
             return ResponseEntity.ok(result);
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
+    }
+
+    @PostMapping("/{id}/sold")
+    public ResponseEntity<?> markSoldLegacy(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId, @RequestBody Map<String, BigDecimal> body) {
+        return markWon(id, sellerId, body);
     }
 
     @PostMapping("/{id}/unsold")
