@@ -4,10 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -59,7 +63,12 @@ public class AuctionCatalogueEventConsumer {
         if (listingId.isBlank()) {
             return;
         }
-        listingService.handleBidPlaced(listingId, decimal(payload.path("currentPrice")));
+        listingService.synchronizeBidState(
+                listingId,
+                moneyFromCents(payload.path("currentPrice")),
+                listingStatus(payload.path("status").asText(null)),
+                localDateTime(payload.path("endTime"))
+        );
     }
 
     private void handleAuctionEnded(JsonNode payload) {
@@ -72,13 +81,31 @@ public class AuctionCatalogueEventConsumer {
             listingService.markUnsold(listingId);
             return;
         }
-        listingService.markWon(listingId, decimal(payload.path("finalPrice")));
+        listingService.markWon(listingId, moneyFromCents(payload.path("finalPrice")));
     }
 
-    private BigDecimal decimal(JsonNode node) {
+    private BigDecimal moneyFromCents(JsonNode node) {
         if (node.isNumber()) {
-            return node.decimalValue();
+            return BigDecimal.valueOf(node.asLong()).movePointLeft(2);
         }
-        return new BigDecimal(node.asText("0"));
+        return new BigDecimal(node.asText("0")).movePointLeft(2);
+    }
+
+    private ListingStatus listingStatus(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return null;
+        }
+        try {
+            return ListingStatus.valueOf(rawStatus.toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private LocalDateTime localDateTime(JsonNode node) {
+        if (!node.isNumber()) {
+            return null;
+        }
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(node.asLong()), ZoneOffset.UTC);
     }
 }
