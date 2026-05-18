@@ -461,15 +461,6 @@ class ListingControllerTest {
         }
 
         @Test
-        void testAuctionCreatedLegacyEndpoint_Success() throws Exception {
-                when(listingService.getListingById("123")).thenReturn(sampleListing);
-
-                mockMvc.perform(post("/api/v1/catalogue/listings/123/auction-created")
-                                .header("X-User-Id", "seller-123"))
-                                .andExpect(status().isOk());
-        }
-
-        @Test
         void testWonEndpoint_Success() throws Exception {
                 Listing result = Listing.builder()
                                 .id("123")
@@ -517,26 +508,6 @@ class ListingControllerTest {
                                 .andExpect(status().isForbidden());
         }
 
-        @Test
-        void testSoldLegacyEndpoint_Success() throws Exception {
-                Listing result = Listing.builder()
-                                .id("123")
-                                .sellerId("seller-123")
-                                .status(ListingStatus.WON)
-                                .currentPrice(new BigDecimal("750000"))
-                                .build();
-                when(listingService.getListingById("123")).thenReturn(sampleListing);
-                when(listingService.markWon(eq("123"), any(BigDecimal.class))).thenReturn(result);
-
-                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
-
-                mockMvc.perform(post("/api/v1/catalogue/listings/123/sold")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-User-Id", "seller-123")
-                                .content(body))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.status").value("WON"));
-        }
 
         @Test
         void testUnsoldEndpoint_Success() throws Exception {
