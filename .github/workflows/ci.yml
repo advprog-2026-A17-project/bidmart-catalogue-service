@@ -21,6 +21,15 @@ jobs:
       - name: Run Unit Tests & Jacoco
         run: chmod +x gradlew && ./gradlew test jacocoTestReport
 
+      - name: Upload Test And Coverage Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalogue-service-test-coverage
+          path: |
+            build/reports/tests/test/**
+            build/reports/jacoco/test/**
+
   sonarcloud:
     name: SonarCloud Code Analysis
     runs-on: ubuntu-latest
