@@ -1,8 +1,6 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.grpc;
 
-import id.ac.ui.cs.advprog.bidmartcatalogueservice.grpc.CatalogueServiceGrpc;
-import id.ac.ui.cs.advprog.bidmartcatalogueservice.grpc.GrpcGetListingSummaryRequest;
-import id.ac.ui.cs.advprog.bidmartcatalogueservice.grpc.GrpcGetListingSummaryResponse;
+
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import io.grpc.Status;
