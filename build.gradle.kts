@@ -5,6 +5,16 @@ plugins {
 	jacoco
 	id("org.sonarqube") version "4.4.1.3373"
 	id("com.google.protobuf") version "0.9.4"
+	idea
+}
+
+idea {
+	module {
+		sourceDirs.plusAssign(file("build/generated/source/proto/main/java"))
+		sourceDirs.plusAssign(file("build/generated/source/proto/main/grpc"))
+		generatedSourceDirs.plusAssign(file("build/generated/source/proto/main/java"))
+		generatedSourceDirs.plusAssign(file("build/generated/source/proto/main/grpc"))
+	}
 }
 
 group = "id.ac.ui.cs.advprog"
