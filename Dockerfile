@@ -1,4 +1,4 @@
-FROM gradle:8.14.4-jdk21-alpine AS builder
+FROM gradle:8.14.4-jdk21 AS builder
 
 WORKDIR /workspace
 COPY settings.gradle.kts settings.gradle.kts

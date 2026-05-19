@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ListingSpecification {
-    public static Specification<Listing> filterListings(String keyword, String category, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status) {
+    public static Specification<Listing> filterListings(String keyword, String category, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, List<ListingStatus> statuses) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -31,9 +31,11 @@ public class ListingSpecification {
             }
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            } else if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
     }
-}
+}
