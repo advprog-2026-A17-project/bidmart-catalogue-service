@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package catalogue.v1;
+
+option java_multiple_files = true;
+option java_package = "id.ac.ui.cs.advprog.bidmartcatalogueservice.grpc";
+option java_outer_classname = "CatalogueProto";
+
+service CatalogueService {
+  rpc GetListingSummary(GrpcGetListingSummaryRequest) returns (GrpcGetListingSummaryResponse);
+}
+
+message GrpcGetListingSummaryRequest {
+  string listing_id = 1;
+}
+
+message GrpcGetListingSummaryResponse {
+  string id = 1;
+  string seller_id = 2;
+  string status = 3;
+}

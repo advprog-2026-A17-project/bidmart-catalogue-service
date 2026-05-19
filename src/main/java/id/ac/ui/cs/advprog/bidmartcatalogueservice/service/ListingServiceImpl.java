@@ -30,6 +30,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing createListing(Listing listing) {
         validateImageUrl(listing.getImageUrl());
+        validateFinancials(listing);
         resolveCategory(listing);
         if (listing.getStatus() == null) {
             listing.setStatus(ListingStatus.DRAFT);
@@ -58,7 +59,10 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, Pageable pageable) {
-        Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status);
+        List<ListingStatus> publicStatuses = status == null
+                ? List.of(ListingStatus.ACTIVE, ListingStatus.EXTENDED)
+                : List.of();
+        Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status, publicStatuses);
         return listingRepository.findAll(spec, pageable);
     }
 
@@ -72,6 +76,7 @@ public class ListingServiceImpl implements ListingService {
                 throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
             validateImageUrl(listing.getImageUrl());
+            validateFinancials(listing);
             resolveCategory(listing);
             existingListing.setTitle(listing.getTitle());
             existingListing.setDescription(listing.getDescription());
@@ -132,6 +137,9 @@ public class ListingServiceImpl implements ListingService {
             }
             if (existingListing.getReservePrice() == null) {
                 existingListing.setReservePrice(existingListing.getStartingPrice());
+            }
+            if (existingListing.getReservePrice().compareTo(existingListing.getStartingPrice()) < 0) {
+                throw new IllegalStateException("Reserve price must be greater than or equal to starting price");
             }
             if (existingListing.getMinimumIncrement() == null) {
                 existingListing.setMinimumIncrement(BigDecimal.ONE);
@@ -239,6 +247,22 @@ public class ListingServiceImpl implements ListingService {
     private void validateImageUrl(String imageUrl) {
         if (!ImageUrlValidator.isValidImageUrl(imageUrl)) {
             throw new IllegalArgumentException("Invalid image URL format: " + imageUrl);
+        }
+    }
+
+    private void validateFinancials(Listing listing) {
+        BigDecimal startingPrice = listing.getStartingPrice();
+        BigDecimal reservePrice = listing.getReservePrice();
+        BigDecimal minimumIncrement = listing.getMinimumIncrement();
+
+        if (startingPrice != null && startingPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Starting price must be greater than 0");
+        }
+        if (reservePrice != null && startingPrice != null && reservePrice.compareTo(startingPrice) < 0) {
+            throw new IllegalArgumentException("Reserve price must be greater than or equal to starting price");
+        }
+        if (minimumIncrement != null && minimumIncrement.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Minimum increment must be greater than 0");
         }
     }
 }

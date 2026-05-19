@@ -400,6 +400,23 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_WithReserveLowerThanStartingPrice_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("4900"))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("Reserve price must be greater than or equal to starting price", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
     void testUpdateListing_WithInvalidImageUrl() {
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
