@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "listings")
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -34,12 +35,12 @@ public class Listing {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private Category categoryEntity;
 
     private BigDecimal startingPrice;
     private BigDecimal reservePrice;
-    private BigDecimal currentPrice; //  update harga dari modul lelang
+    private BigDecimal currentPrice; // update harga dari modul lelang
     private BigDecimal minimumIncrement;
 
     private LocalDateTime startTime;
