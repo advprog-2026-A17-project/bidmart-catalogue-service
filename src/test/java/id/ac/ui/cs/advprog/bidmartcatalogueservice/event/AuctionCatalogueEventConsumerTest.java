@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -70,6 +71,27 @@ class AuctionCatalogueEventConsumerTest {
                 """);
 
         verify(listingService).markWon("listing-1", new BigDecimal("140.00"));
+    }
+
+    @Test
+    void auctionEndedBelowReserveMarksListingUnsoldEvenWithLegacyWinnerId() throws Exception {
+        consumer.consume("""
+                {
+                  "eventId": "evt-ended-3",
+                  "eventType": "auction.ended",
+                  "eventVersion": 1,
+                  "aggregateId": "auction-3",
+                  "payload": {
+                    "listingId": "listing-3",
+                    "status": "UNSOLD",
+                    "winnerId": "buyer-1",
+                    "finalPrice": 4000
+                  }
+                }
+                """);
+
+        verify(listingService).markUnsold("listing-3");
+        verify(listingService, never()).markWon(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
