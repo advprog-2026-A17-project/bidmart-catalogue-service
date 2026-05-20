@@ -179,6 +179,51 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testUpdateListing_WhenActiveWithoutBids_UpdatesOnlyDescriptionAndImage() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setHasBids(false);
+        sampleListing.setDescription("Old description");
+        sampleListing.setImageUrl("https://example.com/old.jpg");
+        sampleListing.setStartingPrice(new BigDecimal("10000"));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing updatedData = Listing.builder()
+                .title("Should Not Change")
+                .description("Updated public description")
+                .imageUrl("https://example.com/new.jpg")
+                .startingPrice(new BigDecimal("99999"))
+                .build();
+
+        Listing updated = listingService.updateListing("123", updatedData);
+
+        assertNotNull(updated);
+        assertEquals("Laptop Test", sampleListing.getTitle());
+        assertEquals(new BigDecimal("10000"), sampleListing.getStartingPrice());
+        assertEquals("Updated public description", sampleListing.getDescription());
+        assertEquals("https://example.com/new.jpg", sampleListing.getImageUrl());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testUpdateListing_WhenActiveWithBids_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setHasBids(true);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> listingService.updateListing("123", Listing.builder()
+                        .description("Updated public description")
+                        .imageUrl("https://example.com/new.jpg")
+                        .build())
+        );
+
+        assertTrue(exception.getMessage().contains("Cannot update listing with active bids"));
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
     void testDeleteListing() {
         doNothing().when(listingRepository).deleteById("123");
 
@@ -447,6 +492,23 @@ class ListingServiceImplTest {
 
         assertNotNull(result);
         assertEquals(ListingStatus.ACTIVE, result.getStatus());
+        assertNotNull(result.getStartTime());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testPublishListing_ResetsStartTimeToPublishTime() {
+        sampleListing.setStatus(ListingStatus.DRAFT);
+        sampleListing.setStartTime(LocalDateTime.now().minusDays(1));
+        sampleListing.setEndTime(LocalDateTime.now().plusDays(1));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing result = listingService.publishListing("123");
+
+        assertNotNull(result);
+        assertEquals(ListingStatus.ACTIVE, result.getStatus());
+        assertTrue(result.getStartTime().isAfter(LocalDateTime.now().minusMinutes(1)));
         verify(listingRepository).save(sampleListing);
     }
 
