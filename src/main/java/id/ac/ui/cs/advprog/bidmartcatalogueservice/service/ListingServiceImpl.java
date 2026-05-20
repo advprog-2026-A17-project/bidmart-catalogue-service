@@ -76,6 +76,13 @@ public class ListingServiceImpl implements ListingService {
                 throw new IllegalStateException("Cannot update listing with active bids");
             }
             if (existingListing.getStatus() != ListingStatus.DRAFT) {
+                if (existingListing.getStatus() == ListingStatus.ACTIVE
+                        || existingListing.getStatus() == ListingStatus.EXTENDED) {
+                    validateImageUrl(listing.getImageUrl());
+                    existingListing.setDescription(listing.getDescription());
+                    existingListing.setImageUrl(listing.getImageUrl());
+                    return listingRepository.save(existingListing);
+                }
                 throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
             normalizeFinancials(listing);
@@ -150,9 +157,7 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.getMinimumIncrement() == null) {
                 existingListing.setMinimumIncrement(BigDecimal.ONE);
             }
-            if (existingListing.getStartTime() == null) {
-                existingListing.setStartTime(now);
-            }
+            existingListing.setStartTime(now);
             if (existingListing.getCurrentPrice() == null) {
                 existingListing.setCurrentPrice(existingListing.getStartingPrice());
             }
