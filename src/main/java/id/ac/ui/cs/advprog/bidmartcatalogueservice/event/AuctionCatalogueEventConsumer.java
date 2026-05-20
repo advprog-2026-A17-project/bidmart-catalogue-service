@@ -76,8 +76,11 @@ public class AuctionCatalogueEventConsumer {
         if (listingId.isBlank()) {
             return;
         }
+        String status = payload.path("status").asText("");
         String winnerId = payload.path("winnerId").asText("");
-        if (winnerId.isBlank()) {
+        boolean sold = "WON".equalsIgnoreCase(status)
+                || (status.isBlank() && !winnerId.isBlank());
+        if (!sold) {
             listingService.markUnsold(listingId);
             return;
         }
