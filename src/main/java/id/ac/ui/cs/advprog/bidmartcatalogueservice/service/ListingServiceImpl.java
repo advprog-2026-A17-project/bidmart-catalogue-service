@@ -13,6 +13,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -29,8 +30,10 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public Listing createListing(Listing listing) {
+        normalizeFinancials(listing);
         validateImageUrl(listing.getImageUrl());
         validateFinancials(listing);
+        validateAuctionSchedule(listing);
         resolveCategory(listing);
         if (listing.getStatus() == null) {
             listing.setStatus(ListingStatus.DRAFT);
@@ -75,8 +78,10 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.getStatus() != ListingStatus.DRAFT) {
                 throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
+            normalizeFinancials(listing);
             validateImageUrl(listing.getImageUrl());
             validateFinancials(listing);
+            validateAuctionSchedule(listing);
             resolveCategory(listing);
             existingListing.setTitle(listing.getTitle());
             existingListing.setDescription(listing.getDescription());
@@ -126,6 +131,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing publishListing(String id) {
         return listingRepository.findById(id).map(existingListing -> {
+            LocalDateTime now = LocalDateTime.now();
             if (existingListing.getStatus() != ListingStatus.DRAFT) {
                 throw new IllegalStateException("Only DRAFT listings can be published, current status: " + existingListing.getStatus());
             }
@@ -145,11 +151,13 @@ public class ListingServiceImpl implements ListingService {
                 existingListing.setMinimumIncrement(BigDecimal.ONE);
             }
             if (existingListing.getStartTime() == null) {
-                existingListing.setStartTime(java.time.LocalDateTime.now());
+                existingListing.setStartTime(now);
             }
             if (existingListing.getCurrentPrice() == null) {
                 existingListing.setCurrentPrice(existingListing.getStartingPrice());
             }
+            normalizeFinancials(existingListing);
+            validateAuctionSchedule(existingListing, now);
             existingListing.setStatus(ListingStatus.ACTIVE);
             return listingRepository.save(existingListing);
         }).orElse(null);
@@ -263,6 +271,43 @@ public class ListingServiceImpl implements ListingService {
         }
         if (minimumIncrement != null && minimumIncrement.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Minimum increment must be greater than 0");
+        }
+    }
+
+    private void normalizeFinancials(Listing listing) {
+        if (listing.getStartingPrice() != null) {
+            listing.setStartingPrice(listing.getStartingPrice().setScale(0, RoundingMode.HALF_UP));
+        }
+        if (listing.getReservePrice() != null) {
+            listing.setReservePrice(listing.getReservePrice().setScale(0, RoundingMode.HALF_UP));
+        }
+        if (listing.getCurrentPrice() != null) {
+            listing.setCurrentPrice(listing.getCurrentPrice().setScale(0, RoundingMode.HALF_UP));
+        }
+        if (listing.getMinimumIncrement() != null) {
+            // Currency increment in IDR should remain whole-rupiah to avoid float drift from clients.
+            listing.setMinimumIncrement(listing.getMinimumIncrement().setScale(0, RoundingMode.HALF_UP));
+        }
+    }
+
+    private void validateAuctionSchedule(Listing listing) {
+        validateAuctionSchedule(listing, LocalDateTime.now());
+    }
+
+    private void validateAuctionSchedule(Listing listing, LocalDateTime now) {
+        LocalDateTime startTime = listing.getStartTime();
+        LocalDateTime endTime = listing.getEndTime();
+
+        if (startTime != null && startTime.isBefore(now)) {
+            throw new IllegalArgumentException("Start time must be greater than or equal to current time");
+        }
+
+        if (endTime != null && !endTime.isAfter(now)) {
+            throw new IllegalArgumentException("End time must be in the future");
+        }
+
+        if (startTime != null && endTime != null && !endTime.isAfter(startTime)) {
+            throw new IllegalArgumentException("End time must be after start time");
         }
     }
 }

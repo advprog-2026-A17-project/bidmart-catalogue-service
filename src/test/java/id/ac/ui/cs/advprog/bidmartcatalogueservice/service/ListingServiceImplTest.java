@@ -621,4 +621,83 @@ class ListingServiceImplTest {
         assertEquals("Updated Title", result.getTitle());
         verify(listingRepository).save(sampleListing);
     }
+
+    @Test
+    void testCreateListing_NormalizesMinimumIncrementToWholeRupiah() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("1999.98"))
+                .startTime(LocalDateTime.now().plusMinutes(5))
+                .endTime(LocalDateTime.now().plusDays(1))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(listing);
+
+        assertNotNull(created);
+        assertEquals(new BigDecimal("2000"), created.getMinimumIncrement());
+    }
+
+    @Test
+    void testCreateListing_WithPastStartTime_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("100"))
+                .startTime(LocalDateTime.now().minusMinutes(1))
+                .endTime(LocalDateTime.now().plusDays(1))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("Start time must be greater than or equal to current time", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testCreateListing_WithPastEndTime_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("100"))
+                .startTime(LocalDateTime.now().plusMinutes(10))
+                .endTime(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("End time must be in the future", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testCreateListing_WithEndBeforeStart_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("100"))
+                .startTime(LocalDateTime.now().plusHours(2))
+                .endTime(LocalDateTime.now().plusHours(1))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("End time must be after start time", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
 }
