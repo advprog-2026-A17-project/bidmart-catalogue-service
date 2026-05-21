@@ -13,6 +13,7 @@ public interface ListingService {
     Listing createListing(Listing listing);
     Listing getListingById(String id);
     List<Listing> getAllListings();
+    List<Listing> getListingsBySeller(String sellerId);
     Page<Listing> searchListings(
             String category,
             Long categoryId,
@@ -20,6 +21,8 @@ public interface ListingService {
             BigDecimal minPrice,
             BigDecimal maxPrice,
             ListingStatus status,
+            LocalDateTime endBefore,
+            LocalDateTime endAfter,
             Pageable pageable
     );
     Listing updateListing(String id, Listing listing);
