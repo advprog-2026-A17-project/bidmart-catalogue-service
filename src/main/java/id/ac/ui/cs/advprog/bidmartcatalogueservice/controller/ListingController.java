@@ -4,7 +4,9 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingCreatedEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingSummaryResponse;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.metrics.BidmartCatalogueMetrics;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
+import io.micrometer.core.annotation.Timed;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.springframework.data.domain.Page;
@@ -24,12 +26,19 @@ public class ListingController {
 
     private final ListingService listingService;
     private final ListingEventPublisher listingEventPublisher;
+    private final BidmartCatalogueMetrics catalogueMetrics;
 
-    public ListingController(ListingService listingService, ListingEventPublisher listingEventPublisher) {
+    public ListingController(
+            ListingService listingService,
+            ListingEventPublisher listingEventPublisher,
+            BidmartCatalogueMetrics catalogueMetrics
+    ) {
         this.listingService = listingService;
         this.listingEventPublisher = listingEventPublisher;
+        this.catalogueMetrics = catalogueMetrics;
     }
 
+    @Timed(value = "bidmart.catalogue.create_listing", description = "Create catalogue listing")
     @PostMapping
     public ResponseEntity<?> create(@RequestHeader("X-User-Id") String sellerId, @RequestBody Listing listing) {
         try {
@@ -43,6 +52,7 @@ public class ListingController {
                     created.getStatus()
             ));
 
+            catalogueMetrics.recordListingCreated();
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
@@ -140,6 +150,7 @@ public class ListingController {
         }
     }
 
+    @Timed(value = "bidmart.catalogue.publish_listing", description = "Publish catalogue listing")
     @PostMapping("/{id}/publish")
     public ResponseEntity<?> publish(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
@@ -152,6 +163,7 @@ public class ListingController {
 
         try {
             Listing published = listingService.publishListing(id);
+            catalogueMetrics.recordListingPublished();
             return ResponseEntity.ok(published);
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
