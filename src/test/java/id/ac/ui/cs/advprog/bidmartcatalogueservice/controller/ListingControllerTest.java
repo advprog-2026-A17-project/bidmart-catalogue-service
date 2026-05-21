@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.metrics.BidmartCatalogueMetrics;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.CatalogAccessPolicy;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ class ListingControllerTest {
 
         @MockitoBean
         private BidmartCatalogueMetrics catalogueMetrics;
+
+        @MockitoBean
+        private CatalogAccessPolicy catalogAccessPolicy;
 
         @Autowired
         private ObjectMapper objectMapper;
@@ -545,5 +549,25 @@ class ListingControllerTest {
                 mockMvc.perform(post("/api/v1/catalogue/listings/123/unsold")
                                 .header("X-User-Id", "wrong-seller"))
                                 .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void testAdminCloseEndpoint() throws Exception {
+                Listing cancelled = Listing.builder()
+                        .id("123")
+                        .sellerId("seller-123")
+                        .status(ListingStatus.CANCELLED)
+                        .build();
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.adminCloseListing("123")).thenReturn(cancelled);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/admin/close")
+                                .header("X-User-Roles", "ADMIN")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"reason\":\"Policy violation\"}"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+                verify(listingEventPublisher).publishListingClosedByAdmin(any());
         }
 }

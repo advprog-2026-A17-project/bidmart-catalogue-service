@@ -246,6 +246,19 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
+    public Listing adminCloseListing(String id) {
+        return listingRepository.findById(id).map(existingListing -> {
+            if (existingListing.getStatus() == ListingStatus.CANCELLED
+                    || existingListing.getStatus() == ListingStatus.WON
+                    || existingListing.getStatus() == ListingStatus.UNSOLD) {
+                throw new IllegalStateException("Cannot admin-close listing with status: " + existingListing.getStatus());
+            }
+            existingListing.setStatus(ListingStatus.CANCELLED);
+            return listingRepository.save(existingListing);
+        }).orElse(null);
+    }
+
+    @Override
     public Listing cancelListing(String id) {
         return listingRepository.findById(id).map(existingListing -> {
             if (existingListing.isHasBids()) {
