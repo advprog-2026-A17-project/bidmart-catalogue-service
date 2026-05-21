@@ -92,6 +92,7 @@ public class ListingController {
     @GetMapping("/search")
     public ResponseEntity<Page<Listing>> search(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
@@ -106,7 +107,15 @@ public class ListingController {
                 : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        return ResponseEntity.ok(listingService.searchListings(category, keyword, minPrice, maxPrice, status, pageable));
+        return ResponseEntity.ok(listingService.searchListings(
+                category,
+                categoryId,
+                keyword,
+                minPrice,
+                maxPrice,
+                status,
+                pageable
+        ));
     }
 
     @PutMapping("/{id}")

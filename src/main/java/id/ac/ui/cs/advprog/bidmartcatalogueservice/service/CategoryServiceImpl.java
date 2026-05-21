@@ -73,4 +73,37 @@ public class CategoryServiceImpl implements CategoryService {
         Long parentId = category.getParent() == null ? null : category.getParent().getId();
         return new CategoryResponse(category.getId(), category.getName(), parentId, children);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> collectDescendantCategoryIds(Long categoryId) {
+        if (categoryId == null) {
+            return List.of();
+        }
+        if (categoryRepository.findById(categoryId).isEmpty()) {
+            return List.of();
+        }
+        List<Category> categories = categoryRepository.findAll();
+        Map<Long, List<Category>> childrenByParentId = new HashMap<>();
+        for (Category category : categories) {
+            Category parent = category.getParent();
+            if (parent != null) {
+                childrenByParentId.computeIfAbsent(parent.getId(), ignored -> new ArrayList<>()).add(category);
+            }
+        }
+        List<Long> ids = new ArrayList<>();
+        collectDescendants(categoryId, childrenByParentId, ids);
+        return ids;
+    }
+
+    private void collectDescendants(
+            Long categoryId,
+            Map<Long, List<Category>> childrenByParentId,
+            List<Long> ids
+    ) {
+        ids.add(categoryId);
+        for (Category child : childrenByParentId.getOrDefault(categoryId, List.of())) {
+            collectDescendants(child.getId(), childrenByParentId, ids);
+        }
+    }
 }
