@@ -67,7 +67,6 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    @Override
     public List<Listing> getListingsBySeller(String sellerId) {
         return listingRepository.findBySellerId(sellerId);
     }
