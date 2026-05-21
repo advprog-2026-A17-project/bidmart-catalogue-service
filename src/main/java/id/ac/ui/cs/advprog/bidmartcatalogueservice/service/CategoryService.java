@@ -7,4 +7,5 @@ import java.util.List;
 public interface CategoryService {
     CategoryResponse createCategory(String name, Long parentId);
     List<CategoryResponse> getCategoryTree();
+    List<Long> collectDescendantCategoryIds(Long categoryId);
 }
