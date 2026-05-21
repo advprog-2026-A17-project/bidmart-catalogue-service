@@ -13,7 +13,15 @@ public interface ListingService {
     Listing createListing(Listing listing);
     Listing getListingById(String id);
     List<Listing> getAllListings();
-    Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, Pageable pageable);
+    Page<Listing> searchListings(
+            String category,
+            Long categoryId,
+            String keyword,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            ListingStatus status,
+            Pageable pageable
+    );
     Listing updateListing(String id, Listing listing);
     Listing cancelListing(String id);
     void deleteListing(String id);
