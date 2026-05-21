@@ -10,4 +10,5 @@ import java.util.List;
 public interface ListingRepository extends JpaRepository<Listing, String>, JpaSpecificationExecutor<Listing> { // Tambahkan ini
     List<Listing> findByCategory(String category);
     List<Listing> findByTitleContainingIgnoreCase(String keyword);
+    List<Listing> findBySellerId(String sellerId);
 }

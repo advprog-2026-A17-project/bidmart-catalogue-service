@@ -5,6 +5,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +17,9 @@ public class ListingSpecification {
             BigDecimal minPrice,
             BigDecimal maxPrice,
             ListingStatus status,
-            List<ListingStatus> statuses
+            List<ListingStatus> statuses,
+            LocalDateTime endBefore,
+            LocalDateTime endAfter
     ) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -43,6 +46,12 @@ public class ListingSpecification {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
             } else if (statuses != null && !statuses.isEmpty()) {
                 predicates.add(root.get("status").in(statuses));
+            }
+            if (endBefore != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("endTime"), endBefore));
+            }
+            if (endAfter != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("endTime"), endAfter));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
