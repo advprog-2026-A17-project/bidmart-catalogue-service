@@ -25,4 +25,5 @@ public interface ListingService {
     Listing markClosed(String id);
     Listing markWon(String id, BigDecimal finalPrice);
     Listing markUnsold(String id);
+    Listing adminCloseListing(String id);
 }
