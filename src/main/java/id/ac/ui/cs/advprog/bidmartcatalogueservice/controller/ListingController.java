@@ -70,6 +70,11 @@ public class ListingController {
         return ResponseEntity.ok(listingService.getAllListings());
     }
 
+    @GetMapping("/seller")
+    public ResponseEntity<List<Listing>> getBySeller(@RequestHeader("X-User-Id") String sellerId) {
+        return ResponseEntity.ok(listingService.getListingsBySeller(sellerId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Listing> getById(@PathVariable String id) {
         return ResponseEntity.ok(listingService.getListingById(id));
@@ -97,6 +102,8 @@ public class ListingController {
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) ListingStatus status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endBefore,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endAfter,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "title") String sortBy,
@@ -114,6 +121,8 @@ public class ListingController {
                 minPrice,
                 maxPrice,
                 status,
+                endBefore,
+                endAfter,
                 pageable
         ));
     }
