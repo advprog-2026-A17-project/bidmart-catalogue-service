@@ -42,21 +42,20 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         boolean adminRoute = request.getRequestURI().contains("/admin/");
 
-        // Strategy 1: Cek gateway identity headers (X-User-Id diset oleh API Gateway)
+        // Strategy 1: Gateway already enforced granular permissions (listing:create, listing:manage, admin:users).
         String gatewayUserId = request.getHeader(HEADER_USER_ID);
         if (gatewayUserId != null && !gatewayUserId.isBlank()) {
-            String rolesHeader = request.getHeader(HEADER_USER_ROLES);
-            if (adminRoute && hasRole(rolesHeader, ADMIN_ROLES)) {
-                return true;
+            if (adminRoute) {
+                String rolesHeader = request.getHeader(HEADER_USER_ROLES);
+                if (hasRole(rolesHeader, ADMIN_ROLES)) {
+                    return true;
+                }
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.getWriter().write("{\"error\": \"Akses ditolak. Hanya admin yang dapat mengelola rute admin katalog.\"}");
+                response.setContentType("application/json");
+                return false;
             }
-            if (hasRole(rolesHeader, SELLER_ROLES)) {
-                return true;
-            }
-
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.getWriter().write("{\"error\": \"Akses ditolak. Hanya penjual yang dapat mengelola katalog.\"}");
-            response.setContentType("application/json");
-            return false;
+            return true;
         }
 
         // Strategy 2: Fallback — parse JWT langsung (untuk direct calls tanpa gateway)

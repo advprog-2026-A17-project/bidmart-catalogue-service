@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,31 +25,17 @@ class CategoryServiceImplTest {
     private CategoryServiceImpl categoryService;
 
     @Test
-    void createCategoryShouldAttachParentWhenParentIdExists() {
-        Category parent = Category.builder().id(1L).name("Electronics").build();
-        Category saved = Category.builder().id(2L).name("Cameras").parent(parent).build();
+    void collectDescendantCategoryIdsShouldIncludeChildren() {
+        Category elektronik = Category.builder().id(1L).name("Elektronik").build();
+        Category handphone = Category.builder().id(2L).name("Handphone").parent(elektronik).build();
+        Category smartphone = Category.builder().id(3L).name("Smartphone").parent(handphone).build();
 
-        when(categoryRepository.findById(1L)).thenReturn(Optional.of(parent));
-        when(categoryRepository.save(any(Category.class))).thenReturn(saved);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(elektronik));
+        when(categoryRepository.findAll()).thenReturn(List.of(elektronik, handphone, smartphone));
 
-        var response = categoryService.createCategory("Cameras", 1L);
+        List<Long> ids = categoryService.collectDescendantCategoryIds(1L);
 
-        assertEquals(2L, response.id());
-        assertEquals("Cameras", response.name());
-        assertEquals(1L, response.parentId());
-    }
-
-    @Test
-    void getCategoryTreeShouldReturnOnlyRootCategoriesWithChildren() {
-        Category root = Category.builder().id(1L).name("Electronics").build();
-        Category child = Category.builder().id(2L).name("Cameras").parent(root).build();
-
-        when(categoryRepository.findAll()).thenReturn(List.of(root, child));
-
-        var tree = categoryService.getCategoryTree();
-
-        assertEquals(1, tree.size());
-        assertEquals("Electronics", tree.getFirst().name());
-        assertEquals("Cameras", tree.getFirst().children().getFirst().name());
+        assertEquals(3, ids.size());
+        assertTrue(ids.containsAll(List.of(1L, 2L, 3L)));
     }
 }

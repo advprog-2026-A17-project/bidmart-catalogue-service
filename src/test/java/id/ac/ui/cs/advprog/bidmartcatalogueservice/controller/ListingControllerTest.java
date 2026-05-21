@@ -26,6 +26,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -258,7 +259,7 @@ class ListingControllerTest {
         @SuppressWarnings("unchecked")
         void testSearchListingsEndpoint_WithPagination() throws Exception {
                 Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
-                when(listingService.searchListings(eq("Fotografi"), eq("Kamera"), any(), any(),
+                when(listingService.searchListings(eq("Fotografi"), isNull(), eq("Kamera"), any(), any(),
                                 eq(ListingStatus.ACTIVE), any(Pageable.class)))
                                 .thenReturn(page);
 
@@ -280,7 +281,7 @@ class ListingControllerTest {
         @SuppressWarnings("unchecked")
         void testSearchListingsEndpoint_WithDefaults() throws Exception {
                 Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
-                when(listingService.searchListings(any(), any(), any(), any(), any(), any(Pageable.class)))
+                when(listingService.searchListings(any(), any(), any(), any(), any(), any(), any(Pageable.class)))
                                 .thenReturn(page);
 
                 mockMvc.perform(get("/api/v1/catalogue/listings/search"))

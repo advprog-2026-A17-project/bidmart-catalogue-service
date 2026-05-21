@@ -9,14 +9,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ListingSpecification {
-    public static Specification<Listing> filterListings(String keyword, String category, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, List<ListingStatus> statuses) {
+    public static Specification<Listing> filterListings(
+            String keyword,
+            String category,
+            List<Long> categoryIds,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            ListingStatus status,
+            List<ListingStatus> statuses
+    ) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (keyword != null && !keyword.trim().isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), "%" + keyword.toLowerCase() + "%"));
             }
-            if (category != null && !category.trim().isEmpty()) {
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                predicates.add(root.get("categoryEntity").get("id").in(categoryIds));
+            } else if (category != null && !category.trim().isEmpty()) {
                 predicates.add(criteriaBuilder.equal(root.get("category"), category));
             }
             if (minPrice != null) {

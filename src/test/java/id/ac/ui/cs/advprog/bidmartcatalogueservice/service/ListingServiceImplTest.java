@@ -36,6 +36,9 @@ class ListingServiceImplTest {
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Mock
+    private CategoryService categoryService;
+
     @InjectMocks
     private ListingServiceImpl listingService;
 
@@ -125,7 +128,15 @@ class ListingServiceImplTest {
         Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing), pageable, 1);
         when(listingRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        Page<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, ListingStatus.ACTIVE, pageable);
+        Page<Listing> result = listingService.searchListings(
+                "Elektronik",
+                null,
+                "Laptop",
+                null,
+                null,
+                ListingStatus.ACTIVE,
+                pageable
+        );
 
         assertEquals(1, result.getTotalElements());
         assertEquals(1, result.getContent().size());
