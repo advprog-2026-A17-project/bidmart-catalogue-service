@@ -15,6 +15,7 @@ public interface ListingService {
     List<Listing> getAllListings();
     Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, Pageable pageable);
     Listing updateListing(String id, Listing listing);
+    Listing cancelListing(String id);
     void deleteListing(String id);
     Listing handleBidPlaced(String listingId, BigDecimal newPrice);
     Listing synchronizeBidState(String listingId, BigDecimal newPrice, ListingStatus status, LocalDateTime endTime);
