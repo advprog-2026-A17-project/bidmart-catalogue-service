@@ -21,6 +21,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final String HEADER_USER_ID = "X-User-Id";
     private static final String HEADER_USER_ROLES = "X-User-Roles";
     private static final Set<String> SELLER_ROLES = Set.of("SELLER");
+    private static final Set<String> ADMIN_ROLES = Set.of("ADMIN");
 
     private final String jwtSecret;
 
@@ -39,16 +40,19 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        boolean adminRoute = request.getRequestURI().contains("/admin/");
+
         // Strategy 1: Cek gateway identity headers (X-User-Id diset oleh API Gateway)
         String gatewayUserId = request.getHeader(HEADER_USER_ID);
         if (gatewayUserId != null && !gatewayUserId.isBlank()) {
-            // Request sudah diautentikasi oleh gateway — cek role dari X-User-Roles
             String rolesHeader = request.getHeader(HEADER_USER_ROLES);
-            if (hasSeller(rolesHeader)) {
+            if (adminRoute && hasRole(rolesHeader, ADMIN_ROLES)) {
+                return true;
+            }
+            if (hasRole(rolesHeader, SELLER_ROLES)) {
                 return true;
             }
 
-            // Gateway mengirim user identity tapi tidak ada role SELLER
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.getWriter().write("{\"error\": \"Akses ditolak. Hanya penjual yang dapat mengelola katalog.\"}");
             response.setContentType("application/json");
@@ -94,6 +98,26 @@ public class AuthInterceptor implements HandlerInterceptor {
                 }
             }
 
+            boolean isAdmin = false;
+            if (rolesObj instanceof List<?> rolesList) {
+                for (Object roleItem : rolesList) {
+                    if (roleItem instanceof Map<?, ?> roleMap) {
+                        if ("ADMIN".equals(roleMap.get("name"))) {
+                            isAdmin = true;
+                            break;
+                        }
+                    } else if ("ADMIN".equals(roleItem.toString())) {
+                        isAdmin = true;
+                        break;
+                    }
+                }
+            }
+
+            if (adminRoute && isAdmin) {
+                request.setAttribute(HEADER_USER_ID, claims.getSubject());
+                return true;
+            }
+
             if (!isSeller) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().write("{\"error\": \"Akses ditolak. Hanya penjual yang dapat mengelola katalog.\"}");
@@ -101,7 +125,6 @@ public class AuthInterceptor implements HandlerInterceptor {
                 return false;
             }
 
-            // Set X-User-Id dari JWT subject agar controller bisa menggunakannya
             request.setAttribute(HEADER_USER_ID, claims.getSubject());
             return true;
 
@@ -117,12 +140,12 @@ public class AuthInterceptor implements HandlerInterceptor {
      * Cek apakah roles header dari gateway mengandung SELLER.
      * Format header: "SELLER" atau "BUYER,SELLER" (comma-separated).
      */
-    private boolean hasSeller(String rolesHeader) {
+    private boolean hasRole(String rolesHeader, Set<String> allowedRoles) {
         if (rolesHeader == null || rolesHeader.isBlank()) {
             return false;
         }
         for (String role : rolesHeader.split(",")) {
-            if (SELLER_ROLES.contains(role.trim().toUpperCase())) {
+            if (allowedRoles.contains(role.trim().toUpperCase())) {
                 return true;
             }
         }
