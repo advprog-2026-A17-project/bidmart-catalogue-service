@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.config.AuthInterceptor;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.metrics.BidmartCatalogueMetrics;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
@@ -42,6 +43,9 @@ class ListingControllerTest {
 
         @MockitoBean
         private ListingEventPublisher listingEventPublisher;
+
+        @MockitoBean
+        private BidmartCatalogueMetrics catalogueMetrics;
 
         @Autowired
         private ObjectMapper objectMapper;
