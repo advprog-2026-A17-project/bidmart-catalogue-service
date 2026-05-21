@@ -67,6 +67,12 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
+    @Override
+    public List<Listing> getListingsBySeller(String sellerId) {
+        return listingRepository.findBySellerId(sellerId);
+    }
+
+    @Override
     public Page<Listing> searchListings(
             String category,
             Long categoryId,
@@ -74,6 +80,8 @@ public class ListingServiceImpl implements ListingService {
             BigDecimal minPrice,
             BigDecimal maxPrice,
             ListingStatus status,
+            LocalDateTime endBefore,
+            LocalDateTime endAfter,
             Pageable pageable
     ) {
         List<ListingStatus> publicStatuses = status == null
@@ -87,7 +95,9 @@ public class ListingServiceImpl implements ListingService {
                 minPrice,
                 maxPrice,
                 status,
-                publicStatuses
+                publicStatuses,
+                endBefore,
+                endAfter
         );
         return listingRepository.findAll(spec, pageable);
     }
