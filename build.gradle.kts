@@ -101,6 +101,11 @@ sonar {
 		property("sonar.projectKey", "advprog-2026-A17-project_bidmart-catalogue-service")
 		property("sonar.organization", "advprog-2026-a17-project")
 		property("sonar.host.url", "https://sonarcloud.io")
+		property("sonar.gradle.skipCompile", "true")
+		property(
+			"sonar.coverage.jacoco.xmlReportPaths",
+			"${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml",
+		)
 	}
 }
 
