@@ -22,10 +22,16 @@ public class ListingServiceImpl implements ListingService {
 
     private final ListingRepository listingRepository;
     private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
 
-    public ListingServiceImpl(ListingRepository listingRepository, CategoryRepository categoryRepository) {
+    public ListingServiceImpl(
+            ListingRepository listingRepository,
+            CategoryRepository categoryRepository,
+            CategoryService categoryService
+    ) {
         this.listingRepository = listingRepository;
         this.categoryRepository = categoryRepository;
+        this.categoryService = categoryService;
     }
 
     @Override
@@ -61,11 +67,28 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    public Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, Pageable pageable) {
+    public Page<Listing> searchListings(
+            String category,
+            Long categoryId,
+            String keyword,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            ListingStatus status,
+            Pageable pageable
+    ) {
         List<ListingStatus> publicStatuses = status == null
                 ? List.of(ListingStatus.ACTIVE, ListingStatus.EXTENDED)
                 : List.of();
-        Specification<Listing> spec = ListingSpecification.filterListings(keyword, category, minPrice, maxPrice, status, publicStatuses);
+        List<Long> categoryIds = categoryId == null ? List.of() : categoryService.collectDescendantCategoryIds(categoryId);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                keyword,
+                category,
+                categoryIds,
+                minPrice,
+                maxPrice,
+                status,
+                publicStatuses
+        );
         return listingRepository.findAll(spec, pageable);
     }
 
