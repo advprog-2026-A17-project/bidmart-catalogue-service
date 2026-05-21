@@ -762,4 +762,15 @@ class ListingServiceImplTest {
         assertEquals("End time must be after start time", exception.getMessage());
         verify(listingRepository, never()).save(any(Listing.class));
     }
+
+    @Test
+    void adminCloseListingShouldCancelActiveListing() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing closed = listingService.adminCloseListing("123");
+
+        assertEquals(ListingStatus.CANCELLED, closed.getStatus());
+    }
 }

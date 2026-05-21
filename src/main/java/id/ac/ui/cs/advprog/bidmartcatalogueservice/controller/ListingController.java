@@ -1,7 +1,10 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.controller;
 
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.AdminListingActionRequest;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingClosedByAdminEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingCreatedEvent;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.CatalogAccessPolicy;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.ListingSummaryResponse;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.metrics.BidmartCatalogueMetrics;
@@ -27,15 +30,18 @@ public class ListingController {
     private final ListingService listingService;
     private final ListingEventPublisher listingEventPublisher;
     private final BidmartCatalogueMetrics catalogueMetrics;
+    private final CatalogAccessPolicy catalogAccessPolicy;
 
     public ListingController(
             ListingService listingService,
             ListingEventPublisher listingEventPublisher,
-            BidmartCatalogueMetrics catalogueMetrics
+            BidmartCatalogueMetrics catalogueMetrics,
+            CatalogAccessPolicy catalogAccessPolicy
     ) {
         this.listingService = listingService;
         this.listingEventPublisher = listingEventPublisher;
         this.catalogueMetrics = catalogueMetrics;
+        this.catalogAccessPolicy = catalogAccessPolicy;
     }
 
     @Timed(value = "bidmart.catalogue.create_listing", description = "Create catalogue listing")
@@ -260,6 +266,32 @@ public class ListingController {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
     }
+    @PostMapping("/{id}/admin/close")
+    public ResponseEntity<?> adminClose(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Roles", required = false) String rolesHeader,
+            @RequestBody(required = false) AdminListingActionRequest request
+    ) {
+        catalogAccessPolicy.requireAdmin(rolesHeader);
+        Listing existingListing = listingService.getListingById(id);
+        if (existingListing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            Listing closed = listingService.adminCloseListing(id);
+            String reason = request == null ? null : request.reason();
+            listingEventPublisher.publishListingClosedByAdmin(new ListingClosedByAdminEvent(
+                    closed.getId(),
+                    closed.getSellerId(),
+                    closed.getStatus(),
+                    reason
+            ));
+            return ResponseEntity.ok(closed);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/cancel")
     public ResponseEntity<?> cancel(@PathVariable String id, @RequestHeader("X-User-Id") String sellerId) {
         Listing existingListing = listingService.getListingById(id);
