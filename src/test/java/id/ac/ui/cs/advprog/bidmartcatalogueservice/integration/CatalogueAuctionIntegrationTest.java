@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "grpc.server.port=0")
 @ActiveProfiles("test")
 class CatalogueAuctionIntegrationTest {
 
