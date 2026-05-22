@@ -27,6 +27,18 @@ class ImageUrlValidatorTest {
     }
 
     @Test
+    void testEmbeddedPlaceholder_IsValid() {
+        assertTrue(ImageUrlValidator.isValidImageUrl(ListingPresentation.EMBEDDED_IMAGE_PLACEHOLDER));
+    }
+
+    @Test
+    void testOversizedDataUrl_IsInvalid() {
+        String prefix = "data:image/png;base64,";
+        String payload = "A".repeat(ImageUrlValidator.MAX_DATA_URL_LENGTH);
+        assertFalse(ImageUrlValidator.isValidImageUrl(prefix + payload));
+    }
+
+    @Test
     void testValidImageDataUrl() {
         assertTrue(ImageUrlValidator.isValidImageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"));
         assertTrue(ImageUrlValidator.isValidImageUrl("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD"));

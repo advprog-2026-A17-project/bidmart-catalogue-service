@@ -12,6 +12,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import io.micrometer.core.annotation.Timed;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ListingPresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -59,7 +60,7 @@ public class ListingController {
             ));
 
             catalogueMetrics.recordListingCreated();
-            return ResponseEntity.ok(created);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(created));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
@@ -67,12 +68,12 @@ public class ListingController {
 
     @GetMapping
     public ResponseEntity<List<Listing>> getAll() {
-        return ResponseEntity.ok(listingService.getAllListings());
+        return ResponseEntity.ok(ListingPresentation.forListResponse(listingService.getAllListings()));
     }
 
     @GetMapping("/seller")
     public ResponseEntity<List<Listing>> getBySeller(@RequestHeader("X-User-Id") String sellerId) {
-        return ResponseEntity.ok(listingService.getListingsBySeller(sellerId));
+        return ResponseEntity.ok(ListingPresentation.forListResponse(listingService.getListingsBySeller(sellerId)));
     }
 
     @GetMapping("/{id}")
@@ -114,7 +115,7 @@ public class ListingController {
                 : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        return ResponseEntity.ok(listingService.searchListings(
+        return ResponseEntity.ok(ListingPresentation.forListResponse(listingService.searchListings(
                 category,
                 categoryId,
                 keyword,
@@ -124,7 +125,7 @@ public class ListingController {
                 endBefore,
                 endAfter,
                 pageable
-        ));
+        )));
     }
 
     @PutMapping("/{id}")
@@ -140,7 +141,7 @@ public class ListingController {
         try {
             listing.setSellerId(sellerId);
             Listing updatedListing = listingService.updateListing(id, listing);
-            return ResponseEntity.ok(updatedListing);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(updatedListing));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         } catch (IllegalArgumentException exception) {

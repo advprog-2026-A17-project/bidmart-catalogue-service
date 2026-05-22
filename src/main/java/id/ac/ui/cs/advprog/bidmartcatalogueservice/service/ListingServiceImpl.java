@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.CategoryRepository
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.specification.ListingSpecification;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ImageUrlValidator;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ListingPresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -112,7 +113,7 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.getStatus() != ListingStatus.DRAFT) {
                 if (existingListing.getStatus() == ListingStatus.ACTIVE
                         || existingListing.getStatus() == ListingStatus.EXTENDED) {
-                    validateImageUrl(listing.getImageUrl());
+                    resolveImageUrlForUpdate(existingListing, listing);
                     existingListing.setDescription(listing.getDescription());
                     existingListing.setImageUrl(listing.getImageUrl());
                     return listingRepository.save(existingListing);
@@ -120,7 +121,7 @@ public class ListingServiceImpl implements ListingService {
                 throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
             normalizeFinancials(listing);
-            validateImageUrl(listing.getImageUrl());
+            resolveImageUrlForUpdate(existingListing, listing);
             validateFinancials(listing);
             if (shouldValidateSchedule(listing)) {
                 validateAuctionSchedule(listing);
@@ -310,6 +311,13 @@ public class ListingServiceImpl implements ListingService {
         if (!ImageUrlValidator.isValidImageUrl(imageUrl)) {
             throw new IllegalArgumentException("Invalid image URL format: " + imageUrl);
         }
+    }
+
+    private void resolveImageUrlForUpdate(Listing existingListing, Listing incomingListing) {
+        if (ListingPresentation.EMBEDDED_IMAGE_PLACEHOLDER.equals(incomingListing.getImageUrl())) {
+            incomingListing.setImageUrl(existingListing.getImageUrl());
+        }
+        validateImageUrl(incomingListing.getImageUrl());
     }
 
     private void validateFinancials(Listing listing) {
