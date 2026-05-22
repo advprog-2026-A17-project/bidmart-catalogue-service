@@ -36,14 +36,17 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public Listing createListing(Listing listing) {
-        normalizeFinancials(listing);
-        validateImageUrl(listing.getImageUrl());
-        validateFinancials(listing);
-        validateAuctionSchedule(listing);
-        resolveCategory(listing);
+        ListingStatus requestedStatus = listing.getStatus();
         if (listing.getStatus() == null) {
             listing.setStatus(ListingStatus.DRAFT);
         }
+        normalizeFinancials(listing);
+        validateImageUrl(listing.getImageUrl());
+        validateFinancials(listing);
+        if (requestedStatus != ListingStatus.DRAFT && hasSchedule(listing)) {
+            validateAuctionSchedule(listing);
+        }
+        resolveCategory(listing);
         if (listing.getMinimumIncrement() == null) {
             listing.setMinimumIncrement(BigDecimal.ONE);
         }
@@ -120,7 +123,9 @@ public class ListingServiceImpl implements ListingService {
             normalizeFinancials(listing);
             validateImageUrl(listing.getImageUrl());
             validateFinancials(listing);
-            validateAuctionSchedule(listing);
+            if (shouldValidateSchedule(listing)) {
+                validateAuctionSchedule(listing);
+            }
             resolveCategory(listing);
             existingListing.setTitle(listing.getTitle());
             existingListing.setDescription(listing.getDescription());
@@ -342,6 +347,14 @@ public class ListingServiceImpl implements ListingService {
 
     private void validateAuctionSchedule(Listing listing) {
         validateAuctionSchedule(listing, LocalDateTime.now());
+    }
+
+    private boolean shouldValidateSchedule(Listing listing) {
+        return listing.getStatus() != null && listing.getStatus() != ListingStatus.DRAFT;
+    }
+
+    private boolean hasSchedule(Listing listing) {
+        return listing.getStartTime() != null || listing.getEndTime() != null;
     }
 
     private void validateAuctionSchedule(Listing listing, LocalDateTime now) {
