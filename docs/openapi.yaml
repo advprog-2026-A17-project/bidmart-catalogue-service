@@ -1,0 +1,552 @@
+openapi: 3.0.3
+info:
+  title: BidMart Catalogue Service API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1/catalogue
+tags:
+  - name: listings
+  - name: categories
+paths:
+  /listings:
+    post:
+      tags: [listings]
+      summary: Create listing
+      parameters:
+        - $ref: "#/components/parameters/XUserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Listing"
+      responses:
+        "200":
+          description: Created listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      tags: [listings]
+      summary: List all listings
+      responses:
+        "200":
+          description: Listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+  /listings/{id}:
+    get:
+      tags: [listings]
+      summary: Get listing by ID
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: Listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+    put:
+      tags: [listings]
+      summary: Update listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Listing"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [listings]
+      summary: Delete listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+  /listings/{id}/summary:
+    get:
+      tags: [listings]
+      summary: Get listing summary
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingSummaryResponse"
+        "404":
+          description: Not found
+  /listings/search:
+    get:
+      tags: [listings]
+      summary: Search listings
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: keyword
+          schema:
+            type: string
+        - in: query
+          name: minPrice
+          schema:
+            type: number
+            format: double
+        - in: query
+          name: maxPrice
+          schema:
+            type: number
+            format: double
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ListingStatus"
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            default: title
+        - in: query
+          name: sortDir
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: Search result page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingPage"
+  /listings/{id}/bid:
+    post:
+      tags: [listings]
+      summary: Apply bid update (internal)
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BidPlacedEvent"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/publish:
+    post:
+      tags: [listings]
+      summary: Publish listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/deactivate:
+    post:
+      tags: [listings]
+      summary: Deactivate listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/extend:
+    post:
+      tags: [listings]
+      summary: Mark listing as extended
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/close:
+    post:
+      tags: [listings]
+      summary: Close listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/won:
+    post:
+      tags: [listings]
+      summary: Mark listing as won
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                finalPrice:
+                  type: number
+                  format: double
+              required: [finalPrice]
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/unsold:
+    post:
+      tags: [listings]
+      summary: Mark listing as unsold
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}/cancel:
+    post:
+      tags: [listings]
+      summary: Cancel listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+        - $ref: "#/components/parameters/XUserId"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /categories:
+    post:
+      tags: [categories]
+      summary: Create category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryCreateRequest"
+      responses:
+        "200":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+  /categories/tree:
+    get:
+      tags: [categories]
+      summary: Get category tree
+      responses:
+        "200":
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryResponse"
+components:
+  parameters:
+    XUserId:
+      in: header
+      name: X-User-Id
+      required: true
+      schema:
+        type: string
+      description: Authenticated seller user ID from gateway
+    ListingId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+  schemas:
+    Listing:
+      type: object
+      properties:
+        id:
+          type: string
+        sellerId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        condition:
+          type: string
+        imageUrl:
+          type: string
+        categoryEntity:
+          $ref: "#/components/schemas/CategoryEntity"
+        startingPrice:
+          type: number
+          format: double
+        reservePrice:
+          type: number
+          format: double
+        currentPrice:
+          type: number
+          format: double
+          nullable: true
+        minimumIncrement:
+          type: number
+          format: double
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/ListingStatus"
+        hasBids:
+          type: boolean
+      additionalProperties: true
+    ListingStatus:
+      type: string
+      enum: [DRAFT, ACTIVE, EXTENDED, CLOSED, WON, UNSOLD, CANCELLED]
+    ListingSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        sellerId:
+          type: string
+        status:
+          $ref: "#/components/schemas/ListingStatus"
+      required: [id, sellerId, status]
+    BidPlacedEvent:
+      type: object
+      properties:
+        listingId:
+          type: string
+        amount:
+          type: number
+          format: double
+      required: [amount]
+    CategoryCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+      required: [name]
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryResponse"
+      required: [id, name]
+    CategoryEntity:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        parent:
+          nullable: true
+      additionalProperties: true
+    ListingPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Listing"
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string

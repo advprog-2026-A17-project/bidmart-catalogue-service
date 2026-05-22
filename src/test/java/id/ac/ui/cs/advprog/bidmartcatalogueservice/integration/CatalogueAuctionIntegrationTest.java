@@ -15,15 +15,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration test antara catalogue dan auction lifecycle.
- * 
- * Test ini memvalidasi:
- * 1. Active listing validation — hanya listing ACTIVE yang bisa menerima bid
- * 2. Eventual price update — price update via bid dan mark sold
- * 3. Full lifecycle — DRAFT → ACTIVE → AUCTION_CREATED → SOLD/UNSOLD
- */
-@SpringBootTest
+@SpringBootTest(properties = "grpc.server.port=0")
 @ActiveProfiles("test")
 class CatalogueAuctionIntegrationTest {
 
@@ -37,12 +29,18 @@ class CatalogueAuctionIntegrationTest {
     void setUp() {
         listingRepository.deleteAll();
     }
-
-    // ===== Full lifecycle test: DRAFT → ACTIVE → AUCTION_CREATED → SOLD =====
+    
+/**
+ * Integration test antara catalogue dan auction lifecycle.
+ * 
+ * Test ini memvalidasi:
+ * 1. Active listing validation — hanya listing ACTIVE yang bisa menerima bid
+ * 2. Eventual price update — price update via bid dan mark sold
+ * 3. Full lifecycle — DRAFT → ACTIVE/EXTENDED → WON/UNSOLD
+ */
 
     @Test
     void testFullLifecycle_DraftToSold() {
-        // 1. Create listing (defaults to DRAFT)
         Listing listing = Listing.builder()
                 .sellerId("seller-001")
                 .title("Laptop Gaming")
@@ -58,33 +56,27 @@ class CatalogueAuctionIntegrationTest {
         assertNotNull(created.getId());
         assertEquals(ListingStatus.DRAFT, created.getStatus());
 
-        // 2. Publish listing (DRAFT → ACTIVE)
         Listing published = listingService.publishListing(created.getId());
         assertEquals(ListingStatus.ACTIVE, published.getStatus());
 
-        // 3. Mark auction created (ACTIVE → AUCTION_CREATED)
-        Listing auctionCreated = listingService.markAuctionCreated(published.getId());
-        assertEquals(ListingStatus.AUCTION_CREATED, auctionCreated.getStatus());
+        Listing extended = listingService.markExtended(published.getId());
+        assertEquals(ListingStatus.EXTENDED, extended.getStatus());
 
-        // 4. Simulate bid placed — price update
-        Listing bidded = listingService.handleBidPlaced(auctionCreated.getId(), new BigDecimal("12000000"));
+        Listing bidded = listingService.handleBidPlaced(extended.getId(), new BigDecimal("12000000"));
         assertNotNull(bidded);
         assertTrue(bidded.isHasBids());
         assertEquals(0, new BigDecimal("12000000").compareTo(bidded.getCurrentPrice()));
 
-        // 5. Mark sold with final price (AUCTION_CREATED → SOLD)
-        Listing sold = listingService.markSold(bidded.getId(), new BigDecimal("15000000"));
-        assertEquals(ListingStatus.SOLD, sold.getStatus());
+        Listing sold = listingService.markWon(bidded.getId(), new BigDecimal("15000000"));
+        assertEquals(ListingStatus.WON, sold.getStatus());
         assertEquals(0, new BigDecimal("15000000").compareTo(sold.getCurrentPrice()));
 
-        // 6. Verify persisted state in DB
         Listing fromDb = listingService.getListingById(sold.getId());
         assertNotNull(fromDb);
-        assertEquals(ListingStatus.SOLD, fromDb.getStatus());
+        assertEquals(ListingStatus.WON, fromDb.getStatus());
         assertEquals(0, new BigDecimal("15000000").compareTo(fromDb.getCurrentPrice()));
     }
 
-    // ===== Full lifecycle test: DRAFT → ACTIVE → AUCTION_CREATED → UNSOLD =====
 
     @Test
     void testFullLifecycle_DraftToUnsold() {
@@ -105,15 +97,10 @@ class CatalogueAuctionIntegrationTest {
         Listing published = listingService.publishListing(created.getId());
         assertEquals(ListingStatus.ACTIVE, published.getStatus());
 
-        Listing auctionCreated = listingService.markAuctionCreated(published.getId());
-        assertEquals(ListingStatus.AUCTION_CREATED, auctionCreated.getStatus());
-
-        // Tidak ada bid, langsung mark unsold
-        Listing unsold = listingService.markUnsold(auctionCreated.getId());
+        Listing unsold = listingService.markUnsold(published.getId());
         assertEquals(ListingStatus.UNSOLD, unsold.getStatus());
     }
 
-    // ===== Active listing validation: hanya ACTIVE/AUCTION_CREATED bisa menerima bid =====
 
     @Test
     void testBidPlaced_OnActiveListing_Success() {
@@ -131,7 +118,6 @@ class CatalogueAuctionIntegrationTest {
         Listing created = listingService.createListing(listing);
         assertEquals(ListingStatus.ACTIVE, created.getStatus());
 
-        // Bid on active listing should succeed
         Listing bidded = listingService.handleBidPlaced(created.getId(), new BigDecimal("9000000"));
         assertNotNull(bidded);
         assertTrue(bidded.isHasBids());
@@ -153,7 +139,6 @@ class CatalogueAuctionIntegrationTest {
         Listing created = listingService.createListing(listing);
         assertEquals(ListingStatus.DRAFT, created.getStatus());
 
-        // Bid on DRAFT listing should be rejected
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
                 () -> listingService.handleBidPlaced(created.getId(), new BigDecimal("4000000"))
@@ -178,7 +163,6 @@ class CatalogueAuctionIntegrationTest {
         Listing cancelled = listingService.cancelListing(created.getId());
         assertEquals(ListingStatus.CANCELLED, cancelled.getStatus());
 
-        // Bid on CANCELLED listing should be rejected
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
                 () -> listingService.handleBidPlaced(created.getId(), new BigDecimal("600000"))
@@ -186,7 +170,6 @@ class CatalogueAuctionIntegrationTest {
         assertTrue(exception.getMessage().contains("Cannot place bid on listing with status"));
     }
 
-    // ===== Eventual price update via bid =====
 
     @Test
     void testEventualPriceUpdate_MultipleBids() {
@@ -203,7 +186,6 @@ class CatalogueAuctionIntegrationTest {
 
         Listing created = listingService.createListing(listing);
 
-        // Simulasi multiple bids — setiap bid mengupdate currentPrice
         Listing bid1 = listingService.handleBidPlaced(created.getId(), new BigDecimal("2500000"));
         assertEquals(0, new BigDecimal("2500000").compareTo(bid1.getCurrentPrice()));
 
@@ -213,13 +195,11 @@ class CatalogueAuctionIntegrationTest {
         Listing bid3 = listingService.handleBidPlaced(created.getId(), new BigDecimal("3500000"));
         assertEquals(0, new BigDecimal("3500000").compareTo(bid3.getCurrentPrice()));
 
-        // Verify final price from DB
         Listing fromDb = listingService.getListingById(created.getId());
         assertEquals(0, new BigDecimal("3500000").compareTo(fromDb.getCurrentPrice()));
         assertTrue(fromDb.isHasBids());
     }
 
-    // ===== Invalid state transitions =====
 
     @Test
     void testInvalidTransition_PublishFromActive_ThrowsException() {
@@ -236,12 +216,11 @@ class CatalogueAuctionIntegrationTest {
 
         Listing created = listingService.createListing(listing);
 
-        // Cannot publish an already ACTIVE listing
         assertThrows(IllegalStateException.class, () -> listingService.publishListing(created.getId()));
     }
 
     @Test
-    void testInvalidTransition_MarkSoldFromActive_ThrowsException() {
+    void testInvalidTransition_MarkWonFromCancelled_ThrowsException() {
         Listing listing = Listing.builder()
                 .sellerId("seller-008")
                 .title("Speaker Bluetooth")
@@ -255,11 +234,9 @@ class CatalogueAuctionIntegrationTest {
 
         Listing created = listingService.createListing(listing);
 
-        // Cannot mark sold directly from ACTIVE (must go through AUCTION_CREATED first)
-        assertThrows(
-                IllegalStateException.class,
-                () -> listingService.markSold(created.getId(), new BigDecimal("1500000"))
-        );
+        Listing cancelled = listingService.cancelListing(created.getId());
+        assertEquals(ListingStatus.CANCELLED, cancelled.getStatus());
+        assertThrows(IllegalStateException.class, () -> listingService.markWon(created.getId(), new BigDecimal("1500000")));
     }
 
     @Test
@@ -276,10 +253,8 @@ class CatalogueAuctionIntegrationTest {
                 .build();
 
         Listing created = listingService.createListing(listing);
-        listingService.markAuctionCreated(created.getId());
-        listingService.markSold(created.getId(), new BigDecimal("750000"));
+        listingService.markWon(created.getId(), new BigDecimal("750000"));
 
-        // Cannot cancel a SOLD listing
         assertThrows(
                 IllegalStateException.class,
                 () -> listingService.cancelListing(created.getId())

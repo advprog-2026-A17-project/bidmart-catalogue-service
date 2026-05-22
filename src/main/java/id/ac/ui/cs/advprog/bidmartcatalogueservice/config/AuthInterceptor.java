@@ -13,9 +13,15 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
+
+    private static final String HEADER_USER_ID = "X-User-Id";
+    private static final String HEADER_USER_ROLES = "X-User-Roles";
+    private static final Set<String> SELLER_ROLES = Set.of("SELLER");
+    private static final Set<String> ADMIN_ROLES = Set.of("ADMIN");
 
     private final String jwtSecret;
 
@@ -34,6 +40,25 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        boolean adminRoute = request.getRequestURI().contains("/admin/");
+
+        // Strategy 1: Gateway already enforced granular permissions (listing:create, listing:manage, admin:users).
+        String gatewayUserId = request.getHeader(HEADER_USER_ID);
+        if (gatewayUserId != null && !gatewayUserId.isBlank()) {
+            if (adminRoute) {
+                String rolesHeader = request.getHeader(HEADER_USER_ROLES);
+                if (hasRole(rolesHeader, ADMIN_ROLES)) {
+                    return true;
+                }
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.getWriter().write("{\"error\": \"Akses ditolak. Hanya admin yang dapat mengelola rute admin katalog.\"}");
+                response.setContentType("application/json");
+                return false;
+            }
+            return true;
+        }
+
+        // Strategy 2: Fallback — parse JWT langsung (untuk direct calls tanpa gateway)
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -72,6 +97,26 @@ public class AuthInterceptor implements HandlerInterceptor {
                 }
             }
 
+            boolean isAdmin = false;
+            if (rolesObj instanceof List<?> rolesList) {
+                for (Object roleItem : rolesList) {
+                    if (roleItem instanceof Map<?, ?> roleMap) {
+                        if ("ADMIN".equals(roleMap.get("name"))) {
+                            isAdmin = true;
+                            break;
+                        }
+                    } else if ("ADMIN".equals(roleItem.toString())) {
+                        isAdmin = true;
+                        break;
+                    }
+                }
+            }
+
+            if (adminRoute && isAdmin) {
+                request.setAttribute(HEADER_USER_ID, claims.getSubject());
+                return true;
+            }
+
             if (!isSeller) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().write("{\"error\": \"Akses ditolak. Hanya penjual yang dapat mengelola katalog.\"}");
@@ -79,6 +124,7 @@ public class AuthInterceptor implements HandlerInterceptor {
                 return false;
             }
 
+            request.setAttribute(HEADER_USER_ID, claims.getSubject());
             return true;
 
         } catch (Exception e) {
@@ -87,5 +133,21 @@ public class AuthInterceptor implements HandlerInterceptor {
             response.setContentType("application/json");
             return false;
         }
+    }
+
+    /**
+     * Cek apakah roles header dari gateway mengandung SELLER.
+     * Format header: "SELLER" atau "BUYER,SELLER" (comma-separated).
+     */
+    private boolean hasRole(String rolesHeader, Set<String> allowedRoles) {
+        if (rolesHeader == null || rolesHeader.isBlank()) {
+            return false;
+        }
+        for (String role : rolesHeader.split(",")) {
+            if (allowedRoles.contains(role.trim().toUpperCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

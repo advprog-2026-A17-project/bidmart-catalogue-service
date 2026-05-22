@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,9 @@ class ListingServiceImplTest {
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Mock
+    private CategoryService categoryService;
+
     @InjectMocks
     private ListingServiceImpl listingService;
 
@@ -47,7 +51,7 @@ class ListingServiceImplTest {
                 .title("Laptop Test")
                 .category("Elektronik")
                 .startingPrice(new BigDecimal("10000"))
-                .status(ListingStatus.ACTIVE)
+                .status(ListingStatus.DRAFT)
                 .build();
     }
 
@@ -88,6 +92,25 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_DraftAllowsPastScheduleUntilPublish() {
+        Listing draft = Listing.builder()
+                .id("draft-past")
+                .title("Draft Past Schedule")
+                .startingPrice(new BigDecimal("5000"))
+                .status(ListingStatus.DRAFT)
+                .startTime(LocalDateTime.now().minusMinutes(5))
+                .endTime(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(draft);
+
+        assertEquals(ListingStatus.DRAFT, created.getStatus());
+        verify(listingRepository).save(draft);
+    }
+
+    @Test
     void testGetAllListings() {
         when(listingRepository.findAll()).thenReturn(Arrays.asList(sampleListing));
 
@@ -124,7 +147,17 @@ class ListingServiceImplTest {
         Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing), pageable, 1);
         when(listingRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        Page<Listing> result = listingService.searchListings("Elektronik", "Laptop", null, null, ListingStatus.ACTIVE, pageable);
+        Page<Listing> result = listingService.searchListings(
+                "Elektronik",
+                null,
+                "Laptop",
+                null,
+                null,
+                ListingStatus.ACTIVE,
+                null,
+                null,
+                pageable
+        );
 
         assertEquals(1, result.getTotalElements());
         assertEquals(1, result.getContent().size());
@@ -164,8 +197,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testUpdateListing_WhenStatusIsSold_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.SOLD);
+    void testUpdateListing_WhenStatusIsWon_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.WON);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
@@ -174,6 +207,51 @@ class ListingServiceImplTest {
         );
 
         assertTrue(exception.getMessage().contains("Cannot update listing with status"));
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testUpdateListing_WhenActiveWithoutBids_UpdatesOnlyDescriptionAndImage() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setHasBids(false);
+        sampleListing.setDescription("Old description");
+        sampleListing.setImageUrl("https://example.com/old.jpg");
+        sampleListing.setStartingPrice(new BigDecimal("10000"));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing updatedData = Listing.builder()
+                .title("Should Not Change")
+                .description("Updated public description")
+                .imageUrl("https://example.com/new.jpg")
+                .startingPrice(new BigDecimal("99999"))
+                .build();
+
+        Listing updated = listingService.updateListing("123", updatedData);
+
+        assertNotNull(updated);
+        assertEquals("Laptop Test", sampleListing.getTitle());
+        assertEquals(new BigDecimal("10000"), sampleListing.getStartingPrice());
+        assertEquals("Updated public description", sampleListing.getDescription());
+        assertEquals("https://example.com/new.jpg", sampleListing.getImageUrl());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testUpdateListing_WhenActiveWithBids_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setHasBids(true);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> listingService.updateListing("123", Listing.builder()
+                        .description("Updated public description")
+                        .imageUrl("https://example.com/new.jpg")
+                        .build())
+        );
+
+        assertTrue(exception.getMessage().contains("Cannot update listing with active bids"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
@@ -213,8 +291,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testCancelListing_WhenStatusIsSold_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.SOLD);
+    void testCancelListing_WhenStatusIsWon_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.WON);
         sampleListing.setHasBids(false);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
@@ -243,6 +321,7 @@ class ListingServiceImplTest {
 
     @Test
     void testHandleBidPlaced_Success() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -293,8 +372,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testHandleBidPlaced_WhenStatusIsAuctionCreated_Success() {
-        sampleListing.setStatus(ListingStatus.AUCTION_CREATED);
+    void testHandleBidPlaced_WhenStatusIsExtended_Success() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -398,6 +477,23 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_WithReserveLowerThanStartingPrice_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("4900"))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("Reserve price must be greater than or equal to starting price", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
     void testUpdateListing_WithInvalidImageUrl() {
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
@@ -416,11 +512,11 @@ class ListingServiceImplTest {
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
-    // ===== State transition tests =====
 
     @Test
     void testPublishListing_FromDraft_Success() {
         sampleListing.setStatus(ListingStatus.DRAFT);
+        sampleListing.setEndTime(LocalDateTime.now().plusDays(1));
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -428,6 +524,23 @@ class ListingServiceImplTest {
 
         assertNotNull(result);
         assertEquals(ListingStatus.ACTIVE, result.getStatus());
+        assertNotNull(result.getStartTime());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testPublishListing_ResetsStartTimeToPublishTime() {
+        sampleListing.setStatus(ListingStatus.DRAFT);
+        sampleListing.setStartTime(LocalDateTime.now().minusDays(1));
+        sampleListing.setEndTime(LocalDateTime.now().plusDays(1));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing result = listingService.publishListing("123");
+
+        assertNotNull(result);
+        assertEquals(ListingStatus.ACTIVE, result.getStatus());
+        assertTrue(result.getStartTime().isAfter(LocalDateTime.now().minusMinutes(1)));
         verify(listingRepository).save(sampleListing);
     }
 
@@ -456,83 +569,83 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testMarkAuctionCreated_FromActive_Success() {
+    void testMarkExtended_FromActive_Success() {
         sampleListing.setStatus(ListingStatus.ACTIVE);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Listing result = listingService.markAuctionCreated("123");
+        Listing result = listingService.markExtended("123");
 
         assertNotNull(result);
-        assertEquals(ListingStatus.AUCTION_CREATED, result.getStatus());
+        assertEquals(ListingStatus.EXTENDED, result.getStatus());
         verify(listingRepository).save(sampleListing);
     }
 
     @Test
-    void testMarkAuctionCreated_FromDraft_ThrowsException() {
+    void testMarkExtended_FromDraft_ThrowsException() {
         sampleListing.setStatus(ListingStatus.DRAFT);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markAuctionCreated("123")
+                () -> listingService.markExtended("123")
         );
 
-        assertTrue(exception.getMessage().contains("Only ACTIVE listings can be marked as AUCTION_CREATED"));
+        assertTrue(exception.getMessage().contains("Only ACTIVE or EXTENDED listings can be marked as EXTENDED"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkAuctionCreated_NotFound() {
+    void testMarkExtended_NotFound() {
         when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
-        Listing result = listingService.markAuctionCreated("999");
+        Listing result = listingService.markExtended("999");
 
         assertNull(result);
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkSold_FromAuctionCreated_Success() {
-        sampleListing.setStatus(ListingStatus.AUCTION_CREATED);
+    void testMarkWon_FromExtended_Success() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Listing result = listingService.markSold("123", new BigDecimal("25000"));
+        Listing result = listingService.markWon("123", new BigDecimal("25000"));
 
         assertNotNull(result);
-        assertEquals(ListingStatus.SOLD, result.getStatus());
+        assertEquals(ListingStatus.WON, result.getStatus());
         assertEquals(new BigDecimal("25000"), result.getCurrentPrice());
         verify(listingRepository).save(sampleListing);
     }
 
     @Test
-    void testMarkSold_FromActive_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.ACTIVE);
+    void testMarkWon_FromCancelled_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.CANCELLED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> listingService.markSold("123", new BigDecimal("25000"))
+                () -> listingService.markWon("123", new BigDecimal("25000"))
         );
 
-        assertTrue(exception.getMessage().contains("Only AUCTION_CREATED listings can be marked as SOLD"));
+        assertTrue(exception.getMessage().contains("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as WON"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkSold_NotFound() {
+    void testMarkWon_NotFound() {
         when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
-        Listing result = listingService.markSold("999", new BigDecimal("25000"));
+        Listing result = listingService.markWon("999", new BigDecimal("25000"));
 
         assertNull(result);
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
     @Test
-    void testMarkUnsold_FromAuctionCreated_Success() {
-        sampleListing.setStatus(ListingStatus.AUCTION_CREATED);
+    void testMarkUnsold_FromExtended_Success() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -544,8 +657,8 @@ class ListingServiceImplTest {
     }
 
     @Test
-    void testMarkUnsold_FromActive_ThrowsException() {
-        sampleListing.setStatus(ListingStatus.ACTIVE);
+    void testMarkUnsold_FromCancelled_ThrowsException() {
+        sampleListing.setStatus(ListingStatus.CANCELLED);
         when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
 
         IllegalStateException exception = assertThrows(
@@ -553,7 +666,7 @@ class ListingServiceImplTest {
                 () -> listingService.markUnsold("123")
         );
 
-        assertTrue(exception.getMessage().contains("Only AUCTION_CREATED listings can be marked as UNSOLD"));
+        assertTrue(exception.getMessage().contains("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as UNSOLD"));
         verify(listingRepository, never()).save(any(Listing.class));
     }
 
@@ -601,5 +714,95 @@ class ListingServiceImplTest {
         assertNotNull(result);
         assertEquals("Updated Title", result.getTitle());
         verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testCreateListing_NormalizesMinimumIncrementToWholeRupiah() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("1999.98"))
+                .startTime(LocalDateTime.now().plusMinutes(5))
+                .endTime(LocalDateTime.now().plusDays(1))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(listing);
+
+        assertNotNull(created);
+        assertEquals(new BigDecimal("2000"), created.getMinimumIncrement());
+    }
+
+    @Test
+    void testCreateListing_WithPastStartTime_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("100"))
+                .startTime(LocalDateTime.now().minusMinutes(1))
+                .endTime(LocalDateTime.now().plusDays(1))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("Start time must be greater than or equal to current time", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testCreateListing_WithPastEndTime_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("100"))
+                .startTime(LocalDateTime.now().plusMinutes(10))
+                .endTime(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("End time must be in the future", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void testCreateListing_WithEndBeforeStart_ThrowsException() {
+        Listing listing = Listing.builder()
+                .title("Camera")
+                .startingPrice(new BigDecimal("5000"))
+                .reservePrice(new BigDecimal("6000"))
+                .minimumIncrement(new BigDecimal("100"))
+                .startTime(LocalDateTime.now().plusHours(2))
+                .endTime(LocalDateTime.now().plusHours(1))
+                .build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> listingService.createListing(listing)
+        );
+
+        assertEquals("End time must be after start time", exception.getMessage());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
+    void adminCloseListingShouldCancelActiveListing() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing closed = listingService.adminCloseListing("123");
+
+        assertEquals(ListingStatus.CANCELLED, closed.getStatus());
     }
 }

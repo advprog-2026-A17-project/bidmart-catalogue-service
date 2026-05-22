@@ -6,21 +6,35 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ListingService {
     Listing createListing(Listing listing);
     Listing getListingById(String id);
     List<Listing> getAllListings();
-    Page<Listing> searchListings(String category, String keyword, BigDecimal minPrice, BigDecimal maxPrice, ListingStatus status, Pageable pageable);
+    List<Listing> getListingsBySeller(String sellerId);
+    Page<Listing> searchListings(
+            String category,
+            Long categoryId,
+            String keyword,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            ListingStatus status,
+            LocalDateTime endBefore,
+            LocalDateTime endAfter,
+            Pageable pageable
+    );
     Listing updateListing(String id, Listing listing);
     Listing cancelListing(String id);
     void deleteListing(String id);
     Listing handleBidPlaced(String listingId, BigDecimal newPrice);
-
-    // State transition methods
+    Listing synchronizeBidState(String listingId, BigDecimal newPrice, ListingStatus status, LocalDateTime endTime);
     Listing publishListing(String id);
-    Listing markAuctionCreated(String id);
-    Listing markSold(String id, BigDecimal finalPrice);
+    Listing deactivateListing(String id);
+    Listing markExtended(String id);
+    Listing markClosed(String id);
+    Listing markWon(String id, BigDecimal finalPrice);
     Listing markUnsold(String id);
+    Listing adminCloseListing(String id);
 }

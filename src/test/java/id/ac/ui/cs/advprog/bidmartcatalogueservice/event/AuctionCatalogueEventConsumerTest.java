@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,7 +10,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -34,25 +37,32 @@ class AuctionCatalogueEventConsumerTest {
                   "eventType": "auction.bid-placed",
                   "eventVersion": 1,
                   "aggregateId": "auction-1",
-                  "payload": {
+                    "payload": {
                     "listingId": "listing-1",
-                    "currentPrice": 12500
+                    "currentPrice": 12500,
+                    "status": "EXTENDED",
+                    "endTime": 1767225600
                   }
                 }
                 """);
 
-        verify(listingService).handleBidPlaced("listing-1", new BigDecimal("12500"));
+        verify(listingService).synchronizeBidState(
+                "listing-1",
+                new BigDecimal("125.00"),
+                ListingStatus.EXTENDED,
+                LocalDateTime.of(2026, 1, 1, 0, 0)
+        );
     }
 
     @Test
-    void auctionEndedWithWinnerMarksListingSold() throws Exception {
+    void auctionEndedWithWinnerMarksListingWon() throws Exception {
         consumer.consume("""
                 {
                   "eventId": "evt-ended-1",
                   "eventType": "auction.ended",
                   "eventVersion": 1,
                   "aggregateId": "auction-1",
-                  "payload": {
+                    "payload": {
                     "listingId": "listing-1",
                     "winnerId": "buyer-1",
                     "finalPrice": 14000
@@ -60,7 +70,28 @@ class AuctionCatalogueEventConsumerTest {
                 }
                 """);
 
-        verify(listingService).markSold("listing-1", new BigDecimal("14000"));
+        verify(listingService).markWon("listing-1", new BigDecimal("140.00"));
+    }
+
+    @Test
+    void auctionEndedBelowReserveMarksListingUnsoldEvenWithLegacyWinnerId() throws Exception {
+        consumer.consume("""
+                {
+                  "eventId": "evt-ended-3",
+                  "eventType": "auction.ended",
+                  "eventVersion": 1,
+                  "aggregateId": "auction-3",
+                  "payload": {
+                    "listingId": "listing-3",
+                    "status": "UNSOLD",
+                    "winnerId": "buyer-1",
+                    "finalPrice": 4000
+                  }
+                }
+                """);
+
+        verify(listingService).markUnsold("listing-3");
+        verify(listingService, never()).markWon(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -99,6 +130,11 @@ class AuctionCatalogueEventConsumerTest {
         consumer.consume(event);
         consumer.consume(event);
 
-        verify(listingService, times(1)).handleBidPlaced("listing-1", new BigDecimal("12500"));
+        verify(listingService, times(1)).synchronizeBidState(
+                "listing-1",
+                new BigDecimal("125.00"),
+                null,
+                null
+        );
     }
 }
