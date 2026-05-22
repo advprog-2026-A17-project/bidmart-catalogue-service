@@ -571,4 +571,168 @@ class ListingControllerTest {
 
                 verify(listingEventPublisher).publishListingClosedByAdmin(any());
         }
+
+        @Test
+        void testGetListingsBySellerEndpoint() throws Exception {
+                when(listingService.getListingsBySeller("seller-123")).thenReturn(Arrays.asList(sampleListing));
+
+                mockMvc.perform(get("/api/v1/catalogue/listings/seller")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].id").value("123"))
+                                .andExpect(jsonPath("$[0].title").value("Kamera Test"));
+        }
+
+        @Test
+        void testDeactivateEndpoint_Success() throws Exception {
+                Listing deactivated = Listing.builder()
+                                .id("123")
+                                .sellerId("seller-123")
+                                .status(ListingStatus.DRAFT)
+                                .build();
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.deactivateListing("123")).thenReturn(deactivated);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/deactivate")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("DRAFT"));
+        }
+
+        @Test
+        void testDeactivateEndpoint_NotFound() throws Exception {
+                when(listingService.getListingById("999")).thenReturn(null);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/999/deactivate")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void testDeactivateEndpoint_Forbidden() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/deactivate")
+                                .header("X-User-Id", "wrong-seller"))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void testDeactivateEndpoint_Conflict() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.deactivateListing("123"))
+                                .thenThrow(new IllegalStateException("Listing cannot be deactivated"));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/deactivate")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.message").value("Listing cannot be deactivated"));
+        }
+
+        @Test
+        void testExtendEndpoint_Conflict() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.markExtended("123"))
+                                .thenThrow(new IllegalStateException("Cannot extend"));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/extend")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.message").value("Cannot extend"));
+        }
+
+        @Test
+        void testMarkClosedEndpoint_Success() throws Exception {
+                Listing result = Listing.builder()
+                                .id("123")
+                                .sellerId("seller-123")
+                                .status(ListingStatus.CLOSED)
+                                .build();
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.markClosed("123")).thenReturn(result);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/close")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("CLOSED"));
+        }
+
+        @Test
+        void testMarkClosedEndpoint_NotFound() throws Exception {
+                when(listingService.getListingById("999")).thenReturn(null);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/999/close")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void testMarkClosedEndpoint_Forbidden() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/close")
+                                .header("X-User-Id", "wrong-seller"))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void testMarkClosedEndpoint_Conflict() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.markClosed("123"))
+                                .thenThrow(new IllegalStateException("Cannot close"));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/close")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.message").value("Cannot close"));
+        }
+
+        @Test
+        void testWonEndpoint_Conflict() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.markWon(eq("123"), any(BigDecimal.class)))
+                                .thenThrow(new IllegalStateException("Cannot mark won"));
+
+                String body = objectMapper.writeValueAsString(Map.of("finalPrice", new BigDecimal("750000")));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/won")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-User-Id", "seller-123")
+                                .content(body))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.message").value("Cannot mark won"));
+        }
+
+        @Test
+        void testUnsoldEndpoint_Conflict() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.markUnsold("123"))
+                                .thenThrow(new IllegalStateException("Cannot mark unsold"));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/unsold")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.message").value("Cannot mark unsold"));
+        }
+
+        @Test
+        void testAdminCloseEndpoint_NotFound() throws Exception {
+                when(listingService.getListingById("999")).thenReturn(null);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/999/admin/close")
+                                .header("X-User-Roles", "ADMIN"))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void testAdminCloseEndpoint_Conflict() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.adminCloseListing("123"))
+                                .thenThrow(new IllegalStateException("Cannot admin close"));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/admin/close")
+                                .header("X-User-Roles", "ADMIN"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.message").value("Cannot admin close"));
+        }
 }

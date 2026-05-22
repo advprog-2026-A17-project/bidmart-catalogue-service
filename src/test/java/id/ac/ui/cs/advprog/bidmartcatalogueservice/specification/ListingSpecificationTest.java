@@ -135,4 +135,51 @@ class ListingSpecificationTest {
 
         assertEquals(3, result.size());
     }
+
+    @Test
+    void testFilterByCategoryIds() {
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, List.of(999L), null, null, null, null, null, null);
+        List<Listing> result = listingRepository.findAll(spec);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testFilterByStatuses() {
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, null, List.of(ListingStatus.DRAFT, ListingStatus.CLOSED), null, null);
+        List<Listing> result = listingRepository.findAll(spec);
+        assertEquals(1, result.size());
+        assertEquals("Keyboard Mechanical", result.get(0).getTitle());
+    }
+
+    @Test
+    void testFilterByEndBefore() {
+        Listing item4 = Listing.builder()
+                .title("Jam Tangan")
+                .endTime(java.time.LocalDateTime.now().minusDays(2))
+                .build();
+        listingRepository.save(item4);
+
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, null, null, java.time.LocalDateTime.now().minusDays(1), null);
+        List<Listing> result = listingRepository.findAll(spec);
+        assertEquals(1, result.size());
+        assertEquals("Jam Tangan", result.get(0).getTitle());
+    }
+
+    @Test
+    void testFilterByEndAfter() {
+        Listing item5 = Listing.builder()
+                .title("Sepatu Baru")
+                .endTime(java.time.LocalDateTime.now().plusDays(2))
+                .build();
+        listingRepository.save(item5);
+
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, null, null, null, java.time.LocalDateTime.now().plusDays(1));
+        List<Listing> result = listingRepository.findAll(spec);
+        assertEquals(1, result.size());
+        assertEquals("Sepatu Baru", result.get(0).getTitle());
+    }
 }
