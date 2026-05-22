@@ -5,6 +5,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.config.AuthInterceptor;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.event.ListingEventPublisher;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.metrics.BidmartCatalogueMetrics;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Category;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.CatalogAccessPolicy;
@@ -26,6 +27,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
@@ -123,6 +125,45 @@ class ListingControllerTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.title").value("Kamera Test"));
 
+                verify(listingEventPublisher).publishListingCreated(any());
+        }
+
+        @Test
+        void testCreateListing_AcceptsCategoryEntityAndOmitsItFromResponse() throws Exception {
+                Category parentCategory = Category.builder().id(10L).name("Elektronik").build();
+                Category category = Category.builder()
+                                .id(1L)
+                                .name("Kamera")
+                                .parent(parentCategory)
+                                .build();
+                when(listingService.createListing(any(Listing.class))).thenAnswer(invocation -> {
+                        Listing listing = invocation.getArgument(0);
+                        listing.setId("123");
+                        listing.setCategory("Kamera");
+                        listing.setCategoryEntity(category);
+                        listing.setStatus(ListingStatus.DRAFT);
+                        return listing;
+                });
+
+                String requestBody = objectMapper.writeValueAsString(Map.of(
+                                "title", "Kamera Test",
+                                "categoryEntity", Map.of("id", 1L),
+                                "startingPrice", new BigDecimal("500000")
+                ));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-User-Id", "seller-123")
+                                .content(requestBody))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.title").value("Kamera Test"))
+                                .andExpect(jsonPath("$.category").value("Kamera"))
+                                .andExpect(jsonPath("$.categoryEntity").doesNotExist());
+
+                verify(listingService).createListing(argThat(listing ->
+                                "seller-123".equals(listing.getSellerId())
+                                                && listing.getCategoryEntity() != null
+                                                && Long.valueOf(1L).equals(listing.getCategoryEntity().getId())));
                 verify(listingEventPublisher).publishListingCreated(any());
         }
 
@@ -452,6 +493,18 @@ class ListingControllerTest {
                                 .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isConflict())
                                 .andExpect(jsonPath("$.message").value("Only DRAFT listings can be published"));
+        }
+
+        @Test
+        void testPublishEndpoint_BadRequest_WhenAuctionScheduleInvalid() throws Exception {
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.publishListing("123"))
+                                .thenThrow(new IllegalArgumentException("Auction end time must be after start time"));
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value("Auction end time must be after start time"));
         }
 
         @Test

@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -37,6 +38,7 @@ public class Listing {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private Category categoryEntity;
 
     private BigDecimal startingPrice;

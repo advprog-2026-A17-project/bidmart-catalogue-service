@@ -192,6 +192,8 @@ public class ListingController {
             return ResponseEntity.ok(ListingPresentation.forListResponse(published));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
     }
 
