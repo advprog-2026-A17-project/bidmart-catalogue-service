@@ -92,6 +92,25 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_DraftAllowsPastScheduleUntilPublish() {
+        Listing draft = Listing.builder()
+                .id("draft-past")
+                .title("Draft Past Schedule")
+                .startingPrice(new BigDecimal("5000"))
+                .status(ListingStatus.DRAFT)
+                .startTime(LocalDateTime.now().minusMinutes(5))
+                .endTime(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(draft);
+
+        assertEquals(ListingStatus.DRAFT, created.getStatus());
+        verify(listingRepository).save(draft);
+    }
+
+    @Test
     void testGetAllListings() {
         when(listingRepository.findAll()).thenReturn(Arrays.asList(sampleListing));
 
