@@ -41,6 +41,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-aop")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-amqp")
 	implementation("net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE")
 	implementation("javax.annotation:javax.annotation-api:1.3.2")
