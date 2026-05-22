@@ -61,17 +61,23 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public Listing getListingById(String id) {
-        return listingRepository.findById(id).orElse(null);
+        return listingRepository.findById(id)
+                .map(this::reconcileExpiredPublishedListing)
+                .orElse(null);
     }
 
     @Override
     public List<Listing> getAllListings() {
-        return listingRepository.findAll();
+        return listingRepository.findAll().stream()
+                .map(this::reconcileExpiredPublishedListing)
+                .toList();
     }
 
     @Override
     public List<Listing> getListingsBySeller(String sellerId) {
-        return listingRepository.findBySellerId(sellerId);
+        return listingRepository.findBySellerId(sellerId).stream()
+                .map(this::reconcileExpiredPublishedListing)
+                .toList();
     }
 
     @Override
@@ -101,7 +107,8 @@ public class ListingServiceImpl implements ListingService {
                 endBefore,
                 endAfter
         );
-        return listingRepository.findAll(spec, pageable);
+        return listingRepository.findAll(spec, pageable)
+                .map(this::reconcileExpiredPublishedListing);
     }
 
     @Override
@@ -157,12 +164,13 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing synchronizeBidState(String listingId, BigDecimal newPrice, ListingStatus status, LocalDateTime endTime) {
         return listingRepository.findById(listingId).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
+            if (!canSynchronizeBidState(existingListing.getStatus())) {
                 throw new IllegalStateException("Cannot place bid on listing with status: " + existingListing.getStatus());
             }
             existingListing.setHasBids(true);
             existingListing.setCurrentPrice(newPrice);
-            if (status == ListingStatus.ACTIVE || status == ListingStatus.EXTENDED) {
+            if (isPublishedListing(existingListing.getStatus())
+                    && (status == ListingStatus.ACTIVE || status == ListingStatus.EXTENDED)) {
                 existingListing.setStatus(status);
             }
             if (endTime != null) {
@@ -305,6 +313,40 @@ public class ListingServiceImpl implements ListingService {
             listing.setCategoryEntity(category);
             listing.setCategory(category.getName());
         }
+    }
+
+    private Listing reconcileExpiredPublishedListing(Listing listing) {
+        if (listing == null || !isPublishedListing(listing.getStatus()) || listing.getEndTime() == null) {
+            return listing;
+        }
+        if (listing.getEndTime().isAfter(LocalDateTime.now())) {
+            return listing;
+        }
+        listing.setStatus(resolveExpiredStatus(listing));
+        return listingRepository.save(listing);
+    }
+
+    private ListingStatus resolveExpiredStatus(Listing listing) {
+        if (!listing.isHasBids()) {
+            return ListingStatus.UNSOLD;
+        }
+        BigDecimal reservePrice = listing.getReservePrice();
+        BigDecimal currentPrice = listing.getCurrentPrice();
+        if (reservePrice != null && currentPrice != null && currentPrice.compareTo(reservePrice) < 0) {
+            return ListingStatus.UNSOLD;
+        }
+        return ListingStatus.CLOSED;
+    }
+
+    private boolean isPublishedListing(ListingStatus status) {
+        return status == ListingStatus.ACTIVE || status == ListingStatus.EXTENDED;
+    }
+
+    private boolean canSynchronizeBidState(ListingStatus status) {
+        return status == ListingStatus.ACTIVE
+                || status == ListingStatus.EXTENDED
+                || status == ListingStatus.CLOSED
+                || status == ListingStatus.UNSOLD;
     }
 
     private void validateImageUrl(String imageUrl) {

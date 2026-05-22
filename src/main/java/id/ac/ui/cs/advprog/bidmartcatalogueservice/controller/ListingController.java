@@ -21,6 +21,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 
@@ -73,7 +77,7 @@ public class ListingController {
 
     @GetMapping("/seller")
     public ResponseEntity<List<Listing>> getBySeller(@RequestHeader("X-User-Id") String sellerId) {
-        return ResponseEntity.ok(ListingPresentation.forListResponse(listingService.getListingsBySeller(sellerId)));
+        return ResponseEntity.ok(listingService.getListingsBySeller(sellerId));
     }
 
     @GetMapping("/{id}")
@@ -96,36 +100,109 @@ public class ListingController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Page<Listing>> search(
+    public ResponseEntity<?> search(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) BigDecimal minPrice,
-            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String minPrice,
+            @RequestParam(required = false) String maxPrice,
             @RequestParam(required = false) ListingStatus status,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endBefore,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endAfter,
+            @RequestParam(required = false) String endBefore,
+            @RequestParam(required = false) String endAfter,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "title") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
 
-        Sort sort = sortDir.equalsIgnoreCase("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        BigDecimal parsedMinPrice;
+        BigDecimal parsedMaxPrice;
+        LocalDateTime parsedEndBefore;
+        LocalDateTime parsedEndAfter;
+        try {
+            parsedMinPrice = parseMoneyParam(minPrice, "minPrice");
+            parsedMaxPrice = parseMoneyParam(maxPrice, "maxPrice");
+            parsedEndBefore = parseDateTimeParam(endBefore, "endBefore");
+            parsedEndAfter = parseDateTimeParam(endAfter, "endAfter");
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+        }
+
+        if (parsedMinPrice != null && parsedMaxPrice != null && parsedMinPrice.compareTo(parsedMaxPrice) > 0) {
+            return ResponseEntity.badRequest().body(Map.of("message", "minPrice must be less than or equal to maxPrice"));
+        }
+
+        Pageable pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, Math.min(size, 100)),
+                sortFromRequest(sortBy, sortDir)
+        );
 
         return ResponseEntity.ok(ListingPresentation.forListResponse(listingService.searchListings(
                 category,
                 categoryId,
                 keyword,
-                minPrice,
-                maxPrice,
+                parsedMinPrice,
+                parsedMaxPrice,
                 status,
-                endBefore,
-                endAfter,
+                parsedEndBefore,
+                parsedEndAfter,
                 pageable
         )));
+    }
+
+    private BigDecimal parseMoneyParam(String rawValue, String fieldName) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+        try {
+            BigDecimal value = new BigDecimal(rawValue.trim());
+            if (value.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException(fieldName + " must be greater than or equal to 0");
+            }
+            return value;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException(fieldName + " must be a valid number");
+        }
+    }
+
+    private LocalDateTime parseDateTimeParam(String rawValue, String fieldName) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+        String value = rawValue.trim();
+        try {
+            return OffsetDateTime.parse(value).withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        } catch (DateTimeParseException ignored) {
+            try {
+                return LocalDateTime.parse(value);
+            } catch (DateTimeParseException exception) {
+                throw new IllegalArgumentException(fieldName + " must be an ISO date-time");
+            }
+        }
+    }
+
+    private Sort sortFromRequest(String rawSortBy, String rawSortDir) {
+        String sortBy = rawSortBy == null ? "" : rawSortBy.trim();
+        String sortDir = rawSortDir == null ? "" : rawSortDir.trim();
+        if (sortBy.endsWith("-desc")) {
+            sortDir = "desc";
+            sortBy = sortBy.substring(0, sortBy.length() - "-desc".length());
+        } else if (sortBy.endsWith("-asc")) {
+            sortDir = "asc";
+            sortBy = sortBy.substring(0, sortBy.length() - "-asc".length());
+        }
+
+        String property = switch (sortBy.replace("_", "").replace("-", "").toLowerCase()) {
+            case "price", "currentprice", "topbid" -> "currentPrice";
+            case "endingsoon", "endtime", "recent" -> "endTime";
+            case "category" -> "category";
+            case "title", "name" -> "title";
+            default -> "title";
+        };
+
+        return "desc".equalsIgnoreCase(sortDir)
+                ? Sort.by(property).descending()
+                : Sort.by(property).ascending();
     }
 
     @PutMapping("/{id}")

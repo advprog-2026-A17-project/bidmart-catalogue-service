@@ -22,16 +22,33 @@ public final class ListingPresentation {
 
     public static Listing forListResponse(Listing listing) {
         if (listing != null && isEmbeddedDataUrl(listing.getImageUrl())) {
-            listing.setImageUrl(EMBEDDED_IMAGE_PLACEHOLDER);
+            return Listing.builder()
+                .id(listing.getId())
+                .sellerId(listing.getSellerId())
+                .title(listing.getTitle())
+                .description(listing.getDescription())
+                .category(listing.getCategory())
+                .condition(listing.getCondition())
+                .imageUrl(EMBEDDED_IMAGE_PLACEHOLDER)
+                .categoryEntity(null) // Exclude proxy to prevent Jackson introspection errors
+                .startingPrice(listing.getStartingPrice())
+                .reservePrice(listing.getReservePrice())
+                .currentPrice(listing.getCurrentPrice())
+                .minimumIncrement(listing.getMinimumIncrement())
+                .startTime(listing.getStartTime())
+                .endTime(listing.getEndTime())
+                .status(listing.getStatus())
+                .hasBids(listing.isHasBids())
+                .build();
         }
         return listing;
     }
 
     public static List<Listing> forListResponse(List<Listing> listings) {
         if (listings == null) {
-            return List.of();
+            return java.util.List.of();
         }
-        return listings.stream().map(ListingPresentation::forListResponse).toList();
+        return listings.stream().map(ListingPresentation::forListResponse).collect(java.util.stream.Collectors.toList());
     }
 
     public static Page<Listing> forListResponse(Page<Listing> page) {

@@ -67,6 +67,7 @@ class ListingControllerTest {
                                 .sellerId("seller-123")
                                 .title("Kamera Test")
                                 .category("Fotografi")
+                                .imageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB")
                                 .startingPrice(new BigDecimal("500000"))
                                 .status(ListingStatus.ACTIVE)
                                 .build();
@@ -81,7 +82,20 @@ class ListingControllerTest {
                                 .andExpect(status().isOk())
                                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                                 .andExpect(jsonPath("$[0].id").value("123"))
-                                .andExpect(jsonPath("$[0].title").value("Kamera Test"));
+                                .andExpect(jsonPath("$[0].title").value("Kamera Test"))
+                                .andExpect(jsonPath("$[0].imageUrl").value(ListingPresentation.EMBEDDED_IMAGE_PLACEHOLDER));
+        }
+
+        @Test
+        void testGetSellerListingsKeepsEmbeddedImageUrl() throws Exception {
+                when(listingService.getListingsBySeller("seller-123")).thenReturn(Arrays.asList(sampleListing));
+
+                mockMvc.perform(get("/api/v1/catalogue/listings/seller")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isOk())
+                                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(jsonPath("$[0].id").value("123"))
+                                .andExpect(jsonPath("$[0].imageUrl").value("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"));
         }
 
         @Test
@@ -332,6 +346,42 @@ class ListingControllerTest {
         }
 
         @Test
+        @SuppressWarnings("unchecked")
+        void testSearchListingsEndpoint_ToleratesEmptyPricesAndSortAlias() throws Exception {
+                Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
+                when(listingService.searchListings(any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+                                .thenReturn(page);
+
+                mockMvc.perform(get("/api/v1/catalogue/listings/search")
+                                .param("minPrice", "")
+                                .param("maxPrice", "")
+                                .param("endBefore", "2026-05-23T10:00:00Z")
+                                .param("sortBy", "price-desc"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content[0].title").value("Kamera Test"));
+
+                verify(listingService).searchListings(
+                                any(),
+                                any(),
+                                any(),
+                                isNull(),
+                                isNull(),
+                                any(),
+                                any(),
+                                any(),
+                                argThat(pageable -> pageable.getSort().getOrderFor("currentPrice").isDescending()));
+        }
+
+        @Test
+        void testSearchListingsEndpoint_RejectsMinPriceGreaterThanMaxPrice() throws Exception {
+                mockMvc.perform(get("/api/v1/catalogue/listings/search")
+                                .param("minPrice", "2000")
+                                .param("maxPrice", "1000"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value("minPrice must be less than or equal to maxPrice"));
+        }
+
+        @Test
         void testCancelListingEndpoint_WhenNoBids() throws Exception {
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
                 Listing cancelledListing = Listing.builder()
@@ -436,7 +486,7 @@ class ListingControllerTest {
                                 .id("123")
                                 .sellerId("seller-123")
                                 .title("Kamera Test")
-                                .status(ListingStatus.ACTIVE)
+                                .status(ListingStatus.ACTIVE).imageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB")
                                 .build();
                 when(listingService.getListingById("123")).thenReturn(sampleListing);
                 when(listingService.publishListing("123")).thenReturn(publishedListing);
@@ -453,7 +503,7 @@ class ListingControllerTest {
                                 .id("123")
                                 .sellerId("seller-123")
                                 .title("Kamera Test")
-                                .status(ListingStatus.ACTIVE)
+                                .status(ListingStatus.ACTIVE).imageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB")
                                 .imageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB")
                                 .build();
                 when(listingService.getListingById("123")).thenReturn(sampleListing);

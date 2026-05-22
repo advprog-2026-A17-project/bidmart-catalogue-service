@@ -108,6 +108,7 @@ sonar {
 			"sonar.coverage.jacoco.xmlReportPaths",
 			"${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml",
 		)
+		property("sonar.coverage.exclusions", "src/main/java/**/grpc/**")
 	}
 }
 

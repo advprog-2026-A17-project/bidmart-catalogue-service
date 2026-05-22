@@ -149,6 +149,68 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testGetListingById_ExpiredActiveWithoutBids_MarksUnsold() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setHasBids(false);
+        sampleListing.setEndTime(LocalDateTime.now().minusMinutes(1));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing found = listingService.getListingById("123");
+
+        assertNotNull(found);
+        assertEquals(ListingStatus.UNSOLD, found.getStatus());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testGetListingById_ExpiredExtendedBelowReserve_MarksUnsold() {
+        sampleListing.setStatus(ListingStatus.EXTENDED);
+        sampleListing.setHasBids(true);
+        sampleListing.setReservePrice(new BigDecimal("20000"));
+        sampleListing.setCurrentPrice(new BigDecimal("15000"));
+        sampleListing.setEndTime(LocalDateTime.now().minusMinutes(1));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing found = listingService.getListingById("123");
+
+        assertNotNull(found);
+        assertEquals(ListingStatus.UNSOLD, found.getStatus());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testGetListingById_ExpiredActiveReserveMet_ClosesForAuctionSettlement() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setHasBids(true);
+        sampleListing.setReservePrice(new BigDecimal("10000"));
+        sampleListing.setCurrentPrice(new BigDecimal("15000"));
+        sampleListing.setEndTime(LocalDateTime.now().minusMinutes(1));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing found = listingService.getListingById("123");
+
+        assertNotNull(found);
+        assertEquals(ListingStatus.CLOSED, found.getStatus());
+        verify(listingRepository).save(sampleListing);
+    }
+
+    @Test
+    void testGetListingById_FutureActiveListing_RemainsActive() {
+        sampleListing.setStatus(ListingStatus.ACTIVE);
+        sampleListing.setEndTime(LocalDateTime.now().plusMinutes(1));
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+
+        Listing found = listingService.getListingById("123");
+
+        assertNotNull(found);
+        assertEquals(ListingStatus.ACTIVE, found.getStatus());
+        verify(listingRepository, never()).save(any(Listing.class));
+    }
+
+    @Test
     void testGetListingById_NotFound() {
         when(listingRepository.findById("999")).thenReturn(Optional.empty());
 
@@ -399,6 +461,25 @@ class ListingServiceImplTest {
         assertNotNull(result);
         assertTrue(result.isHasBids());
         assertEquals(new BigDecimal("15000"), result.getCurrentPrice());
+    }
+
+    @Test
+    void testSynchronizeBidState_WhenStatusIsClosed_UpdatesTopBidWithoutReopening() {
+        sampleListing.setStatus(ListingStatus.CLOSED);
+        when(listingRepository.findById("123")).thenReturn(Optional.of(sampleListing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing result = listingService.synchronizeBidState(
+                "123",
+                new BigDecimal("17500"),
+                ListingStatus.EXTENDED,
+                null
+        );
+
+        assertNotNull(result);
+        assertTrue(result.isHasBids());
+        assertEquals(new BigDecimal("17500"), result.getCurrentPrice());
+        assertEquals(ListingStatus.CLOSED, result.getStatus());
     }
 
     @Test
