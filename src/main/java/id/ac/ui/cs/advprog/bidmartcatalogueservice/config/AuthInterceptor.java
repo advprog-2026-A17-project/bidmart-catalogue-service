@@ -1,19 +1,21 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.config;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerInterceptor;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.HandlerInterceptor;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -39,9 +41,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         if ("GET".equalsIgnoreCase(method) || "OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
-
         boolean adminRoute = request.getRequestURI().contains("/admin/");
-
         // Strategy 1: Gateway already enforced granular permissions (listing:create, listing:manage, admin:users).
         String gatewayUserId = request.getHeader(HEADER_USER_ID);
         if (gatewayUserId != null && !gatewayUserId.isBlank()) {
@@ -57,7 +57,6 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
             return true;
         }
-
         // Strategy 2: Fallback — parse JWT langsung (untuk direct calls tanpa gateway)
         String authHeader = request.getHeader("Authorization");
 
