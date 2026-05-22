@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +31,7 @@ class ListingSpecificationTest {
                 .category("Elektronik")
                 .currentPrice(new BigDecimal("15000"))
                 .status(ListingStatus.ACTIVE)
+                .endTime(LocalDateTime.now().plusDays(1))
                 .build();
 
         Listing item2 = Listing.builder()
@@ -37,6 +39,7 @@ class ListingSpecificationTest {
                 .category("Elektronik")
                 .currentPrice(new BigDecimal("1000"))
                 .status(ListingStatus.DRAFT)
+                .endTime(LocalDateTime.now().plusDays(3))
                 .build();
 
         Listing item3 = Listing.builder()
@@ -44,6 +47,7 @@ class ListingSpecificationTest {
                 .category("Furniture")
                 .currentPrice(new BigDecimal("2500"))
                 .status(ListingStatus.ACTIVE)
+                .endTime(LocalDateTime.now().minusDays(1))
                 .build();
 
         listingRepository.saveAll(List.of(item1, item2, item3));
@@ -134,5 +138,50 @@ class ListingSpecificationTest {
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(3, result.size());
+    }
+
+    @Test
+    void testFilterByStatusesWhenSingleStatusAbsent() {
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, null,
+                List.of(ListingStatus.ACTIVE), null, null);
+        List<Listing> result = listingRepository.findAll(spec);
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(listing -> listing.getStatus() == ListingStatus.ACTIVE));
+    }
+
+    @Test
+    void testSingleStatusTakesPrecedenceOverStatusesList() {
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, ListingStatus.DRAFT,
+                List.of(ListingStatus.ACTIVE), null, null);
+        List<Listing> result = listingRepository.findAll(spec);
+
+        assertEquals(1, result.size());
+        assertEquals("Keyboard Mechanical", result.get(0).getTitle());
+    }
+
+    @Test
+    void testFilterByEndBefore() {
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, null, null,
+                LocalDateTime.now().plusDays(2), null);
+        List<Listing> result = listingRepository.findAll(spec);
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(l -> l.getTitle().equals("Laptop Gaming Pro")));
+        assertTrue(result.stream().anyMatch(l -> l.getTitle().equals("Meja Kayu")));
+    }
+
+    @Test
+    void testFilterByEndAfter() {
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, null, null,
+                null, LocalDateTime.now().plusDays(2));
+        List<Listing> result = listingRepository.findAll(spec);
+
+        assertEquals(1, result.size());
+        assertEquals("Keyboard Mechanical", result.get(0).getTitle());
     }
 }

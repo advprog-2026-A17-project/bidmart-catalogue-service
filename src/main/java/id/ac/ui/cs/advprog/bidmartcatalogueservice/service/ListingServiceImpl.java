@@ -1,20 +1,20 @@
 package id.ac.ui.cs.advprog.bidmartcatalogueservice.service;
 
-import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Category;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.repository.ListingRepository;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.listing.ListingExpiryStrategy;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.listing.ListingStates;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.listing.ListingValidationChain;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.listing.ListingValidationContext;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.specification.ListingSpecification;
-import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ImageUrlValidator;
-import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ListingPresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,6 +24,7 @@ public class ListingServiceImpl implements ListingService {
     private final ListingRepository listingRepository;
     private final CategoryRepository categoryRepository;
     private final CategoryService categoryService;
+    private final ListingValidationChain validationChain = ListingValidationChain.defaultChain();
 
     public ListingServiceImpl(
             ListingRepository listingRepository,
@@ -40,13 +41,14 @@ public class ListingServiceImpl implements ListingService {
         if (listing.getStatus() == null) {
             listing.setStatus(ListingStatus.DRAFT);
         }
-        normalizeFinancials(listing);
-        validateImageUrl(listing.getImageUrl());
-        validateFinancials(listing);
-        if (listing.getStatus() != ListingStatus.DRAFT && hasSchedule(listing)) {
-            validateAuctionSchedule(listing);
-        }
-        resolveCategory(listing);
+        validationChain.validate(new ListingValidationContext(
+                listing,
+                null,
+                categoryRepository,
+                LocalDateTime.now(),
+                listing.getStatus() != ListingStatus.DRAFT && hasSchedule(listing),
+                true
+        ));
         if (listing.getMinimumIncrement() == null) {
             listing.setMinimumIncrement(BigDecimal.ONE);
         }
@@ -127,13 +129,16 @@ public class ListingServiceImpl implements ListingService {
                 }
                 throw new IllegalStateException("Cannot update listing with status: " + existingListing.getStatus());
             }
-            normalizeFinancials(listing);
-            resolveImageUrlForUpdate(existingListing, listing);
-            validateFinancials(listing);
-            if (shouldValidateSchedule(listing)) {
-                validateAuctionSchedule(listing);
-            }
-            resolveCategory(listing);
+            ListingValidationChain.normalizeFinancials(listing);
+            ListingValidationChain.resolveImageUrlForUpdate(existingListing, listing);
+            validationChain.validate(new ListingValidationContext(
+                    listing,
+                    existingListing,
+                    categoryRepository,
+                    LocalDateTime.now(),
+                    shouldValidateSchedule(listing),
+                    true
+            ));
             existingListing.setTitle(listing.getTitle());
             existingListing.setDescription(listing.getDescription());
             existingListing.setImageUrl(listing.getImageUrl());
@@ -206,9 +211,9 @@ public class ListingServiceImpl implements ListingService {
             if (existingListing.getCurrentPrice() == null) {
                 existingListing.setCurrentPrice(existingListing.getStartingPrice());
             }
-            normalizeFinancials(existingListing);
-            validateAuctionSchedule(existingListing, now);
-            existingListing.setStatus(ListingStatus.ACTIVE);
+            ListingValidationChain.normalizeFinancials(existingListing);
+            ListingValidationChain.validateAuctionSchedule(existingListing, now);
+            ListingStates.forStatus(existingListing.getStatus()).publish(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -216,13 +221,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing deactivateListing(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.isHasBids()) {
-                throw new IllegalStateException("Cannot deactivate listing with active bids");
-            }
-            if (existingListing.getStatus() != ListingStatus.ACTIVE) {
-                throw new IllegalStateException("Only ACTIVE listings can be deactivated, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.DRAFT);
+            ListingStates.forStatus(existingListing.getStatus()).deactivate(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -230,10 +229,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing markExtended(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
-                throw new IllegalStateException("Only ACTIVE or EXTENDED listings can be marked as EXTENDED, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.EXTENDED);
+            ListingStates.forStatus(existingListing.getStatus()).markExtended(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -241,10 +237,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing markClosed(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE && existingListing.getStatus() != ListingStatus.EXTENDED) {
-                throw new IllegalStateException("Only ACTIVE or EXTENDED listings can be marked as CLOSED, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.CLOSED);
+            ListingStates.forStatus(existingListing.getStatus()).markClosed(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -252,13 +245,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing markWon(String id, BigDecimal finalPrice) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE
-                    && existingListing.getStatus() != ListingStatus.EXTENDED
-                    && existingListing.getStatus() != ListingStatus.CLOSED) {
-                throw new IllegalStateException("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as WON, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.WON);
-            existingListing.setCurrentPrice(finalPrice);
+            ListingStates.forStatus(existingListing.getStatus()).markWon(existingListing, finalPrice);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -266,12 +253,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing markUnsold(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE
-                    && existingListing.getStatus() != ListingStatus.EXTENDED
-                    && existingListing.getStatus() != ListingStatus.CLOSED) {
-                throw new IllegalStateException("Only ACTIVE, EXTENDED, or CLOSED listings can be marked as UNSOLD, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.UNSOLD);
+            ListingStates.forStatus(existingListing.getStatus()).markUnsold(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -279,12 +261,7 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing adminCloseListing(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() == ListingStatus.CANCELLED
-                    || existingListing.getStatus() == ListingStatus.WON
-                    || existingListing.getStatus() == ListingStatus.UNSOLD) {
-                throw new IllegalStateException("Cannot admin-close listing with status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.CANCELLED);
+            ListingStates.forStatus(existingListing.getStatus()).adminClose(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
@@ -292,27 +269,20 @@ public class ListingServiceImpl implements ListingService {
     @Override
     public Listing cancelListing(String id) {
         return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.isHasBids()) {
-                throw new IllegalStateException("Listing has active bids");
-            }
-            if (existingListing.getStatus() == ListingStatus.WON ||
-                existingListing.getStatus() == ListingStatus.UNSOLD || 
-                existingListing.getStatus() == ListingStatus.CLOSED ||
-                existingListing.getStatus() == ListingStatus.CANCELLED) {
-                throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.CANCELLED);
+            ListingStates.forStatus(existingListing.getStatus()).cancel(existingListing);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }
 
     private void resolveCategory(Listing listing) {
-        if (listing.getCategoryEntity() != null && listing.getCategoryEntity().getId() != null) {
-            Category category = categoryRepository.findById(listing.getCategoryEntity().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + listing.getCategoryEntity().getId()));
-            listing.setCategoryEntity(category);
-            listing.setCategory(category.getName());
-        }
+        validationChain.validate(new ListingValidationContext(
+                listing,
+                null,
+                categoryRepository,
+                LocalDateTime.now(),
+                false,
+                true
+        ));
     }
 
     private Listing reconcileExpiredPublishedListing(Listing listing) {
@@ -322,20 +292,12 @@ public class ListingServiceImpl implements ListingService {
         if (listing.getEndTime().isAfter(LocalDateTime.now())) {
             return listing;
         }
-        listing.setStatus(resolveExpiredStatus(listing));
+        listing.setStatus(ListingExpiryStrategy.forListing(listing).resolveExpiredStatus(listing));
         return listingRepository.save(listing);
     }
 
     private ListingStatus resolveExpiredStatus(Listing listing) {
-        if (!listing.isHasBids()) {
-            return ListingStatus.UNSOLD;
-        }
-        BigDecimal reservePrice = listing.getReservePrice();
-        BigDecimal currentPrice = listing.getCurrentPrice();
-        if (reservePrice != null && currentPrice != null && currentPrice.compareTo(reservePrice) < 0) {
-            return ListingStatus.UNSOLD;
-        }
-        return ListingStatus.CLOSED;
+        return ListingExpiryStrategy.forListing(listing).resolveExpiredStatus(listing);
     }
 
     private boolean isPublishedListing(ListingStatus status) {
@@ -350,52 +312,23 @@ public class ListingServiceImpl implements ListingService {
     }
 
     private void validateImageUrl(String imageUrl) {
-        if (!ImageUrlValidator.isValidImageUrl(imageUrl)) {
-            throw new IllegalArgumentException("Invalid image URL format: " + imageUrl);
-        }
+        ListingValidationChain.validateImageUrl(imageUrl);
     }
 
     private void resolveImageUrlForUpdate(Listing existingListing, Listing incomingListing) {
-        if (ListingPresentation.EMBEDDED_IMAGE_PLACEHOLDER.equals(incomingListing.getImageUrl())) {
-            incomingListing.setImageUrl(existingListing.getImageUrl());
-        }
-        validateImageUrl(incomingListing.getImageUrl());
+        ListingValidationChain.resolveImageUrlForUpdate(existingListing, incomingListing);
     }
 
     private void validateFinancials(Listing listing) {
-        BigDecimal startingPrice = listing.getStartingPrice();
-        BigDecimal reservePrice = listing.getReservePrice();
-        BigDecimal minimumIncrement = listing.getMinimumIncrement();
-
-        if (startingPrice != null && startingPrice.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Starting price must be greater than 0");
-        }
-        if (reservePrice != null && startingPrice != null && reservePrice.compareTo(startingPrice) < 0) {
-            throw new IllegalArgumentException("Reserve price must be greater than or equal to starting price");
-        }
-        if (minimumIncrement != null && minimumIncrement.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Minimum increment must be greater than 0");
-        }
+        ListingValidationChain.validateFinancials(listing);
     }
 
     private void normalizeFinancials(Listing listing) {
-        if (listing.getStartingPrice() != null) {
-            listing.setStartingPrice(listing.getStartingPrice().setScale(0, RoundingMode.HALF_UP));
-        }
-        if (listing.getReservePrice() != null) {
-            listing.setReservePrice(listing.getReservePrice().setScale(0, RoundingMode.HALF_UP));
-        }
-        if (listing.getCurrentPrice() != null) {
-            listing.setCurrentPrice(listing.getCurrentPrice().setScale(0, RoundingMode.HALF_UP));
-        }
-        if (listing.getMinimumIncrement() != null) {
-            // Currency increment in IDR should remain whole-rupiah to avoid float drift from clients.
-            listing.setMinimumIncrement(listing.getMinimumIncrement().setScale(0, RoundingMode.HALF_UP));
-        }
+        ListingValidationChain.normalizeFinancials(listing);
     }
 
     private void validateAuctionSchedule(Listing listing) {
-        validateAuctionSchedule(listing, LocalDateTime.now());
+        ListingValidationChain.validateAuctionSchedule(listing, LocalDateTime.now());
     }
 
     private boolean shouldValidateSchedule(Listing listing) {
@@ -407,19 +340,6 @@ public class ListingServiceImpl implements ListingService {
     }
 
     private void validateAuctionSchedule(Listing listing, LocalDateTime now) {
-        LocalDateTime startTime = listing.getStartTime();
-        LocalDateTime endTime = listing.getEndTime();
-
-        if (startTime != null && startTime.isBefore(now)) {
-            throw new IllegalArgumentException("Start time must be greater than or equal to current time");
-        }
-
-        if (endTime != null && !endTime.isAfter(now)) {
-            throw new IllegalArgumentException("End time must be in the future");
-        }
-
-        if (startTime != null && endTime != null && !endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("End time must be after start time");
-        }
+        ListingValidationChain.validateAuctionSchedule(listing, now);
     }
 }

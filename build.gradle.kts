@@ -3,7 +3,7 @@ plugins {
 	id("org.springframework.boot") version "3.5.11"
 	id("io.spring.dependency-management") version "1.1.7"
 	jacoco
-	id("org.sonarqube") version "4.4.1.3373"
+	id("org.sonarqube") version "6.2.0.5505"
 	id("com.google.protobuf") version "0.9.4"
 	idea
 }
@@ -104,6 +104,7 @@ sonar {
 		property("sonar.organization", "advprog-2026-a17-project")
 		property("sonar.host.url", "https://sonarcloud.io")
 		property("sonar.gradle.skipCompile", "true")
+		property("sonar.qualitygate.wait", "true")
 		property(
 			"sonar.coverage.jacoco.xmlReportPaths",
 			"${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml",
@@ -126,4 +127,20 @@ tasks.jacocoTestReport {
 			}
 		}),
 	)
+}
+
+tasks.jacocoTestCoverageVerification {
+	dependsOn(tasks.jacocoTestReport)
+	violationRules {
+		rule {
+			limit {
+				minimum = "0.85".toBigDecimal()
+			}
+		}
+	}
+	classDirectories.setFrom(tasks.jacocoTestReport.get().classDirectories)
+}
+
+tasks.check {
+	dependsOn(tasks.jacocoTestCoverageVerification)
 }
