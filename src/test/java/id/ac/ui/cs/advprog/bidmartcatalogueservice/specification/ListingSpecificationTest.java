@@ -51,7 +51,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterByKeyword() {
-        Specification<Listing> spec = ListingSpecification.filterListings("gaming", null, null, null, null, null, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                "gaming", null, null, null, null, null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(1, result.size());
@@ -60,7 +61,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterByCategory() {
-        Specification<Listing> spec = ListingSpecification.filterListings(null, "Elektronik", null, null, null, null, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, "Elektronik", null, null, null, null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(2, result.size());
@@ -68,7 +70,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterByMinPrice() {
-        Specification<Listing> spec = ListingSpecification.filterListings(null, null, null, new BigDecimal("2000"), null, null, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, new BigDecimal("2000"), null, null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(2, result.size());
@@ -78,7 +81,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterByMaxPrice() {
-        Specification<Listing> spec = ListingSpecification.filterListings(null, null, null, null, new BigDecimal("2000"), null, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, new BigDecimal("2000"), null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(1, result.size());
@@ -87,7 +91,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterByStatus() {
-        Specification<Listing> spec = ListingSpecification.filterListings(null, null, null, null, null, ListingStatus.DRAFT, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                null, null, null, null, null, ListingStatus.DRAFT, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(1, result.size());
@@ -103,6 +108,8 @@ class ListingSpecificationTest {
                 new BigDecimal("10000"),
                 new BigDecimal("20000"),
                 ListingStatus.ACTIVE,
+                null,
+                null,
                 null
         );
         List<Listing> result = listingRepository.findAll(spec);
@@ -113,7 +120,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterNoMatches() {
-        Specification<Listing> spec = ListingSpecification.filterListings("sepeda", "Olahraga", null, null, null, null, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                "sepeda", "Olahraga", null, null, null, null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertTrue(result.isEmpty());
@@ -121,7 +129,8 @@ class ListingSpecificationTest {
 
     @Test
     void testFilterNullStatusIgnored() {
-        Specification<Listing> spec = ListingSpecification.filterListings("", "  ", null, null, null, null, null);
+        Specification<Listing> spec = ListingSpecification.filterListings(
+                "", "  ", null, null, null, null, null, null, null);
         List<Listing> result = listingRepository.findAll(spec);
 
         assertEquals(3, result.size());

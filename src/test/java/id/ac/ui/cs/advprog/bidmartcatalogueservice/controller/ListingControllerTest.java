@@ -260,7 +260,7 @@ class ListingControllerTest {
         void testSearchListingsEndpoint_WithPagination() throws Exception {
                 Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
                 when(listingService.searchListings(eq("Fotografi"), isNull(), eq("Kamera"), any(), any(),
-                                eq(ListingStatus.ACTIVE), any(Pageable.class)))
+                                eq(ListingStatus.ACTIVE), any(), any(), any(Pageable.class)))
                                 .thenReturn(page);
 
                 mockMvc.perform(get("/api/v1/catalogue/listings/search")
@@ -281,7 +281,7 @@ class ListingControllerTest {
         @SuppressWarnings("unchecked")
         void testSearchListingsEndpoint_WithDefaults() throws Exception {
                 Page<Listing> page = new PageImpl<>(Arrays.asList(sampleListing));
-                when(listingService.searchListings(any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+                when(listingService.searchListings(any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
                                 .thenReturn(page);
 
                 mockMvc.perform(get("/api/v1/catalogue/listings/search"))
