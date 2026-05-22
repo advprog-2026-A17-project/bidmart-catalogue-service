@@ -145,20 +145,6 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    public Listing cancelListing(String id) {
-        return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.isHasBids()) {
-                throw new IllegalStateException("Listing has active bids");
-            }
-            if (existingListing.getStatus() != ListingStatus.DRAFT && existingListing.getStatus() != ListingStatus.ACTIVE) {
-                throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.CANCELLED);
-            return listingRepository.save(existingListing);
-        }).orElse(null);
-    }
-
-    @Override
     public void deleteListing(String id) {
         listingRepository.deleteById(id);
     }
@@ -308,51 +294,6 @@ public class ListingServiceImpl implements ListingService {
                 throw new IllegalStateException("Cannot cancel listing with status: " + existingListing.getStatus());
             }
             existingListing.setStatus(ListingStatus.CANCELLED);
-            return listingRepository.save(existingListing);
-        }).orElse(null);
-    }
-
-    @Override
-    public Listing publishListing(String id) {
-        return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.DRAFT) {
-                throw new IllegalStateException("Only DRAFT listings can be published, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.ACTIVE);
-            return listingRepository.save(existingListing);
-        }).orElse(null);
-    }
-
-    @Override
-    public Listing markAuctionCreated(String id) {
-        return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.ACTIVE) {
-                throw new IllegalStateException("Only ACTIVE listings can be marked as AUCTION_CREATED, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.AUCTION_CREATED);
-            return listingRepository.save(existingListing);
-        }).orElse(null);
-    }
-
-    @Override
-    public Listing markSold(String id, BigDecimal finalPrice) {
-        return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
-                throw new IllegalStateException("Only AUCTION_CREATED listings can be marked as SOLD, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.SOLD);
-            existingListing.setCurrentPrice(finalPrice);
-            return listingRepository.save(existingListing);
-        }).orElse(null);
-    }
-
-    @Override
-    public Listing markUnsold(String id) {
-        return listingRepository.findById(id).map(existingListing -> {
-            if (existingListing.getStatus() != ListingStatus.AUCTION_CREATED) {
-                throw new IllegalStateException("Only AUCTION_CREATED listings can be marked as UNSOLD, current status: " + existingListing.getStatus());
-            }
-            existingListing.setStatus(ListingStatus.UNSOLD);
             return listingRepository.save(existingListing);
         }).orElse(null);
     }

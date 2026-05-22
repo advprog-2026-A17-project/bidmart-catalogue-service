@@ -10,10 +10,6 @@ public class ImageUrlValidator {
             "^data:image/(png|jpe?g|webp);base64,[A-Za-z0-9+/=_-]+$",
             Pattern.CASE_INSENSITIVE
     );
-    private static final Pattern IMAGE_DATA_URL_PATTERN = Pattern.compile(
-            "^data:image/(png|jpe?g|webp);base64,[A-Za-z0-9+/=_-]+$",
-            Pattern.CASE_INSENSITIVE
-    );
 
     private ImageUrlValidator() {
         // utility class
