@@ -111,6 +111,23 @@ class ListingServiceImplTest {
     }
 
     @Test
+    void testCreateListing_NullStatusDefaultsToDraftAndSkipsScheduleValidation() {
+        Listing draft = Listing.builder()
+                .id("draft-null-status")
+                .title("Draft From Frontend")
+                .startingPrice(new BigDecimal("5000"))
+                .endTime(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Listing created = listingService.createListing(draft);
+
+        assertEquals(ListingStatus.DRAFT, created.getStatus());
+        verify(listingRepository).save(draft);
+    }
+
+    @Test
     void testGetAllListings() {
         when(listingRepository.findAll()).thenReturn(Arrays.asList(sampleListing));
 
@@ -739,6 +756,7 @@ class ListingServiceImplTest {
     void testCreateListing_WithPastStartTime_ThrowsException() {
         Listing listing = Listing.builder()
                 .title("Camera")
+                .status(ListingStatus.ACTIVE)
                 .startingPrice(new BigDecimal("5000"))
                 .reservePrice(new BigDecimal("6000"))
                 .minimumIncrement(new BigDecimal("100"))
@@ -759,6 +777,7 @@ class ListingServiceImplTest {
     void testCreateListing_WithPastEndTime_ThrowsException() {
         Listing listing = Listing.builder()
                 .title("Camera")
+                .status(ListingStatus.ACTIVE)
                 .startingPrice(new BigDecimal("5000"))
                 .reservePrice(new BigDecimal("6000"))
                 .minimumIncrement(new BigDecimal("100"))
@@ -779,6 +798,7 @@ class ListingServiceImplTest {
     void testCreateListing_WithEndBeforeStart_ThrowsException() {
         Listing listing = Listing.builder()
                 .title("Camera")
+                .status(ListingStatus.ACTIVE)
                 .startingPrice(new BigDecimal("5000"))
                 .reservePrice(new BigDecimal("6000"))
                 .minimumIncrement(new BigDecimal("100"))

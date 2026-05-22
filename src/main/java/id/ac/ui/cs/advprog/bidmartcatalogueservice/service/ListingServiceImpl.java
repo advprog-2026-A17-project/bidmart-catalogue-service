@@ -36,14 +36,13 @@ public class ListingServiceImpl implements ListingService {
 
     @Override
     public Listing createListing(Listing listing) {
-        ListingStatus requestedStatus = listing.getStatus();
         if (listing.getStatus() == null) {
             listing.setStatus(ListingStatus.DRAFT);
         }
         normalizeFinancials(listing);
         validateImageUrl(listing.getImageUrl());
         validateFinancials(listing);
-        if (requestedStatus != ListingStatus.DRAFT && hasSchedule(listing)) {
+        if (listing.getStatus() != ListingStatus.DRAFT && hasSchedule(listing)) {
             validateAuctionSchedule(listing);
         }
         resolveCategory(listing);
