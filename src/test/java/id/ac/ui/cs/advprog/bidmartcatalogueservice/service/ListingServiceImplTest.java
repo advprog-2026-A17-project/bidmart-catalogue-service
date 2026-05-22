@@ -135,6 +135,8 @@ class ListingServiceImplTest {
                 null,
                 null,
                 ListingStatus.ACTIVE,
+                null,
+                null,
                 pageable
         );
 
