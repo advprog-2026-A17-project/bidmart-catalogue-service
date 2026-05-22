@@ -169,7 +169,7 @@ public class ListingController {
             if (updated == null) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(updated));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -189,7 +189,7 @@ public class ListingController {
         try {
             Listing published = listingService.publishListing(id);
             catalogueMetrics.recordListingPublished();
-            return ResponseEntity.ok(published);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(published));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -207,7 +207,7 @@ public class ListingController {
 
         try {
             Listing deactivated = listingService.deactivateListing(id);
-            return ResponseEntity.ok(deactivated);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(deactivated));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -225,7 +225,7 @@ public class ListingController {
 
         try {
             Listing result = listingService.markExtended(id);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(result));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -243,7 +243,7 @@ public class ListingController {
 
         try {
             Listing result = listingService.markClosed(id);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(result));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -262,7 +262,7 @@ public class ListingController {
         try {
             BigDecimal finalPrice = body.get("finalPrice");
             Listing result = listingService.markWon(id, finalPrice);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(result));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -280,7 +280,7 @@ public class ListingController {
 
         try {
             Listing result = listingService.markUnsold(id);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(result));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -305,7 +305,7 @@ public class ListingController {
                     closed.getStatus(),
                     reason
             ));
-            return ResponseEntity.ok(closed);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(closed));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }
@@ -323,7 +323,7 @@ public class ListingController {
 
         try {
             Listing result = listingService.cancelListing(id);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ListingPresentation.forListResponse(result));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
         }

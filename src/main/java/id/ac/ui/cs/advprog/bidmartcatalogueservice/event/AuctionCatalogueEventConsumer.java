@@ -77,9 +77,7 @@ public class AuctionCatalogueEventConsumer {
             return;
         }
         String status = payload.path("status").asText("");
-        String winnerId = payload.path("winnerId").asText("");
-        boolean sold = "WON".equalsIgnoreCase(status)
-                || (status.isBlank() && !winnerId.isBlank());
+        boolean sold = "WON".equalsIgnoreCase(status);
         if (!sold) {
             listingService.markUnsold(listingId);
             return;

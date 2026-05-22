@@ -55,7 +55,7 @@ class AuctionCatalogueEventConsumerTest {
     }
 
     @Test
-    void auctionEndedWithWinnerMarksListingWon() throws Exception {
+    void auctionEndedWithWonStatusMarksListingWon() throws Exception {
         consumer.consume("""
                 {
                   "eventId": "evt-ended-1",
@@ -64,6 +64,7 @@ class AuctionCatalogueEventConsumerTest {
                   "aggregateId": "auction-1",
                     "payload": {
                     "listingId": "listing-1",
+                    "status": "WON",
                     "winnerId": "buyer-1",
                     "finalPrice": 14000
                   }
@@ -71,6 +72,26 @@ class AuctionCatalogueEventConsumerTest {
                 """);
 
         verify(listingService).markWon("listing-1", new BigDecimal("140.00"));
+    }
+
+    @Test
+    void auctionEndedWithWinnerButMissingStatusMarksListingUnsold() throws Exception {
+        consumer.consume("""
+                {
+                  "eventId": "evt-ended-legacy",
+                  "eventType": "auction.ended",
+                  "eventVersion": 1,
+                  "aggregateId": "auction-legacy",
+                    "payload": {
+                    "listingId": "listing-legacy",
+                    "winnerId": "buyer-1",
+                    "finalPrice": 14000
+                  }
+                }
+                """);
+
+        verify(listingService).markUnsold("listing-legacy");
+        verify(listingService, never()).markWon(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

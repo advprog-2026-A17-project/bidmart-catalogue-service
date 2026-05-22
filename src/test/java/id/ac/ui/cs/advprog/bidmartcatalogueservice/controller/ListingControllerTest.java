@@ -9,6 +9,7 @@ import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.Listing;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.model.ListingStatus;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.CatalogAccessPolicy;
 import id.ac.ui.cs.advprog.bidmartcatalogueservice.service.ListingService;
+import id.ac.ui.cs.advprog.bidmartcatalogueservice.util.ListingPresentation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -403,6 +404,24 @@ class ListingControllerTest {
                                 .header("X-User-Id", "seller-123"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("ACTIVE"));
+        }
+
+        @Test
+        void testPublishEndpoint_SanitizesEmbeddedImageUrl() throws Exception {
+                Listing publishedListing = Listing.builder()
+                                .id("123")
+                                .sellerId("seller-123")
+                                .title("Kamera Test")
+                                .status(ListingStatus.ACTIVE)
+                                .imageUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB")
+                                .build();
+                when(listingService.getListingById("123")).thenReturn(sampleListing);
+                when(listingService.publishListing("123")).thenReturn(publishedListing);
+
+                mockMvc.perform(post("/api/v1/catalogue/listings/123/publish")
+                                .header("X-User-Id", "seller-123"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.imageUrl").value(ListingPresentation.EMBEDDED_IMAGE_PLACEHOLDER));
         }
 
         @Test
