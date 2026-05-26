@@ -19,7 +19,7 @@ jobs:
           cache: gradle
 
       - name: Run Unit Tests & Jacoco
-        run: chmod +x gradlew && ./gradlew test jacocoTestReport
+        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport --no-daemon --stacktrace
 
       - name: Upload Test And Coverage Artifacts
         if: always()
