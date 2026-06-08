@@ -109,8 +109,21 @@ public class ListingServiceImpl implements ListingService {
                 endBefore,
                 endAfter
         );
-        return listingRepository.findAll(spec, pageable)
-                .map(this::reconcileExpiredPublishedListing);
+        Page<Listing> results = listingRepository.findAll(spec, pageable);
+        List<Listing> toSave = new java.util.ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (Listing listing : results.getContent()) {
+            if (listing != null && isPublishedListing(listing.getStatus()) && listing.getEndTime() != null) {
+                if (!listing.getEndTime().isAfter(now)) {
+                    listing.setStatus(ListingExpiryStrategy.forListing(listing).resolveExpiredStatus(listing));
+                    toSave.add(listing);
+                }
+            }
+        }
+        if (!toSave.isEmpty()) {
+            listingRepository.saveAll(toSave);
+        }
+        return results;
     }
 
     @Override

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ListingRepository extends JpaRepository<Listing, String>, JpaSpecificationExecutor<Listing> { // Tambahkan ini
+public interface ListingRepository extends JpaRepository<Listing, String>, JpaSpecificationExecutor<Listing> { 
     List<Listing> findByCategory(String category);
     List<Listing> findByTitleContainingIgnoreCase(String keyword);
     List<Listing> findBySellerId(String sellerId);

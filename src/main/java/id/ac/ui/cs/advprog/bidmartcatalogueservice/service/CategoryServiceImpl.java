@@ -11,11 +11,15 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private volatile List<CategoryResponse> cachedCategoryTree = null;
+    private final Map<Long, List<Long>> descendantCategoryIdsCache = new ConcurrentHashMap<>();
 
     public CategoryServiceImpl(CategoryRepository categoryRepository) {
         this.categoryRepository = categoryRepository;
@@ -34,30 +38,45 @@ public class CategoryServiceImpl implements CategoryService {
                 .name(name.trim())
                 .parent(parent)
                 .build();
-        return toResponse(categoryRepository.save(category), List.of());
+        CategoryResponse response = toResponse(categoryRepository.save(category), List.of());
+        synchronized (this) {
+            cachedCategoryTree = null;
+        }
+        descendantCategoryIdsCache.clear();
+        return response;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getCategoryTree() {
-        List<Category> categories = categoryRepository.findAll().stream()
-                .sorted(Comparator.comparing(Category::getName))
-                .toList();
-        Map<Long, List<Category>> childrenByParentId = new HashMap<>();
-        List<Category> roots = new ArrayList<>();
+        List<CategoryResponse> localTree = cachedCategoryTree;
+        if (localTree == null) {
+            synchronized (this) {
+                localTree = cachedCategoryTree;
+                if (localTree == null) {
+                    List<Category> categories = categoryRepository.findAll().stream()
+                            .sorted(Comparator.comparing(Category::getName))
+                            .toList();
+                    Map<Long, List<Category>> childrenByParentId = new HashMap<>();
+                    List<Category> roots = new ArrayList<>();
 
-        for (Category category : categories) {
-            Category parent = category.getParent();
-            if (parent == null) {
-                roots.add(category);
-            } else {
-                childrenByParentId.computeIfAbsent(parent.getId(), ignored -> new ArrayList<>()).add(category);
+                    for (Category category : categories) {
+                        Category parent = category.getParent();
+                        if (parent == null) {
+                            roots.add(category);
+                        } else {
+                            childrenByParentId.computeIfAbsent(parent.getId(), ignored -> new ArrayList<>()).add(category);
+                        }
+                    }
+
+                    localTree = roots.stream()
+                            .map(category -> toTreeResponse(category, childrenByParentId))
+                            .toList();
+                    cachedCategoryTree = localTree;
+                }
             }
         }
-
-        return roots.stream()
-                .map(category -> toTreeResponse(category, childrenByParentId))
-                .toList();
+        return localTree;
     }
 
     private CategoryResponse toTreeResponse(Category category, Map<Long, List<Category>> childrenByParentId) {
@@ -80,20 +99,23 @@ public class CategoryServiceImpl implements CategoryService {
         if (categoryId == null) {
             return List.of();
         }
-        if (categoryRepository.findById(categoryId).isEmpty()) {
-            return List.of();
-        }
-        List<Category> categories = categoryRepository.findAll();
-        Map<Long, List<Category>> childrenByParentId = new HashMap<>();
-        for (Category category : categories) {
-            Category parent = category.getParent();
-            if (parent != null) {
-                childrenByParentId.computeIfAbsent(parent.getId(), ignored -> new ArrayList<>()).add(category);
+        return descendantCategoryIdsCache.computeIfAbsent(categoryId, id -> {
+            if (categoryRepository.findById(id).isEmpty()) {
+                return List.of();
             }
-        }
-        List<Long> ids = new ArrayList<>();
-        collectDescendants(categoryId, childrenByParentId, ids);
-        return ids;
+            List<Category> categories = categoryRepository.findAll();
+
+            Map<Long, List<Category>> childrenByParentId = new HashMap<>();
+            for (Category category : categories) {
+                Category parent = category.getParent();
+                if (parent != null) {
+                    childrenByParentId.computeIfAbsent(parent.getId(), ignored -> new ArrayList<>()).add(category);
+                }
+            }
+            List<Long> ids = new ArrayList<>();
+            collectDescendants(id, childrenByParentId, ids);
+            return ids;
+        });
     }
 
     private void collectDescendants(

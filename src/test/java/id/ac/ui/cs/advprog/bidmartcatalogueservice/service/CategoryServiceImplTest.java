@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CategoryServiceImplTest {
@@ -97,9 +97,31 @@ class CategoryServiceImplTest {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(elektronik));
         when(categoryRepository.findAll()).thenReturn(List.of(elektronik, handphone, smartphone));
 
-        List<Long> ids = categoryService.collectDescendantCategoryIds(1L);
+        // First call
+        List<Long> ids1 = categoryService.collectDescendantCategoryIds(1L);
+        // Second call
+        List<Long> ids2 = categoryService.collectDescendantCategoryIds(1L);
 
-        assertEquals(3, ids.size());
-        assertTrue(ids.containsAll(List.of(1L, 2L, 3L)));
+        assertEquals(3, ids1.size());
+        assertEquals(ids1, ids2);
+        // Verify that findAll and findById were only called once (second call hit the cache)
+        verify(categoryRepository, times(1)).findById(1L);
+        verify(categoryRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getCategoryTreeCachesResults() {
+        Category elektronik = Category.builder().id(1L).name("Elektronik").build();
+        when(categoryRepository.findAll()).thenReturn(List.of(elektronik));
+
+        // First call
+        var tree1 = categoryService.getCategoryTree();
+        // Second call
+        var tree2 = categoryService.getCategoryTree();
+
+        assertEquals(1, tree1.size());
+        assertEquals(tree1, tree2);
+        // Verify that findAll was only called once
+        verify(categoryRepository, times(1)).findAll();
     }
 }

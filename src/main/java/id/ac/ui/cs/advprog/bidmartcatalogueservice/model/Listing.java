@@ -52,7 +52,7 @@ public class Listing {
     private LocalDateTime endTime;
 
     @Enumerated(EnumType.STRING)
-    private ListingStatus status; // DRAFT, ACTIVE, EXTENDED, CLOSED, WON, UNSOLD, CANCELLED
+    private ListingStatus status; // DRAFT, ACTIVE, EXTENDED, CLOSED, WON, UNSOLD
 
     @Builder.Default
     private boolean hasBids = false;
